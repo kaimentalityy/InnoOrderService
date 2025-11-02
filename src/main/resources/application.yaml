@@ -1,27 +1,34 @@
+server:
+  port: ${ORDER_SERVER_PORT:8086}
+
 spring:
   datasource:
-    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:ord_db}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:17052007}
+    url: jdbc:postgresql://${ORDER_DB_HOST:postgres_order}:${ORDER_DB_PORT:5432}/${ORDER_DB_NAME:order_db}
+    username: ${ORDER_DB_USERNAME:postgres}
+    password: ${ORDER_DB_PASSWORD:17052007}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: true
 
   liquibase:
     enabled: true
     change-log: classpath:/db/changelog/changelog-master.xml
 
-server:
-  port: ${SERVER_PORT:8083}
-
+# User service URL inside Docker network
 user:
   service:
-    url: http://localhost:8081
+    url: ${USER_SERVICE_URI:http://user-service:8082}
 
 resilience4j:
   circuitbreaker:
     instances:
       userService:
-        failure-rate-threshold: 50           # 50% of calls can fail before opening
-        wait-duration-in-open-state: 10s     # wait 10 seconds before retrying
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
         permitted-number-of-calls-in-half-open-state: 3
-        sliding-window-size: 10              # check last 10 calls
+        sliding-window-size: 10
         automatic-transition-from-open-to-half-open-enabled: true
-
