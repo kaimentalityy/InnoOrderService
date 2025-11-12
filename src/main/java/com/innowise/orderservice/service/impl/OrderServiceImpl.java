@@ -3,21 +3,29 @@ package com.innowise.orderservice.service.impl;
 import com.innowise.orderservice.client.UserServiceClient;
 import com.innowise.orderservice.dao.repository.OrderRepository;
 import com.innowise.orderservice.dao.specification.OrderSpecifications;
+import com.innowise.orderservice.event.OrderCreatedEvent;
+import com.innowise.orderservice.event.OrderItemEvent;
 import com.innowise.orderservice.exception.OrderNotFoundException;
 import com.innowise.orderservice.mapper.OrderMapper;
 import com.innowise.orderservice.model.dto.OrderDto;
 import com.innowise.orderservice.model.dto.UserInfoDto;
 import com.innowise.orderservice.model.entity.Order;
+import com.innowise.orderservice.model.entity.OrderItem;
 import com.innowise.orderservice.service.OrderService;
+import com.innowise.orderservice.service.kafka.OrderEventProducer;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class OrderServiceImpl implements OrderService {
@@ -25,12 +33,16 @@ public class OrderServiceImpl implements OrderService {
     private final OrderRepository orderRepository;
     private final OrderMapper orderMapper;
     private final UserServiceClient userServiceClient;
+    private final OrderEventProducer orderEventProducer;
 
     @Override
     @Transactional
     public OrderDto create(OrderDto createDto) {
         Order order = orderMapper.toEntity(createDto);
         Order saved = orderRepository.save(order);
+
+        sendOrderCreatedEvent(saved);
+
         return mapToOrderDto(saved, null);
     }
 
@@ -98,6 +110,75 @@ public class OrderServiceImpl implements OrderService {
         }
         return userServiceClient.getUserById(userId);
     }
+
+    /**
+     * Send CREATE_ORDER event to Kafka
+     */
+    private void sendOrderCreatedEvent(Order order) {
+        try {
+            log.info("Preparing CREATE_ORDER event for order ID: {}", order.getId());
+
+            BigDecimal totalAmount = calculateTotalAmount(order);
+
+            List<OrderItemEvent> orderItemEvents = convertToOrderItemEvents(order.getItems());
+
+            OrderCreatedEvent event = new OrderCreatedEvent(
+                    order.getId(),
+                    order.getUserId(),
+                    order.getStatus(),
+                    totalAmount,
+                    orderItemEvents
+            );
+
+            orderEventProducer.sendOrderCreatedEvent(event);
+
+            log.info("CREATE_ORDER event sent for order ID: {}", order.getId());
+
+        } catch (Exception e) {
+            log.error("Failed to send CREATE_ORDER event for order ID: {}", order.getId(), e);
+        }
+    }
+
+    /**
+     * Calculate total order amount from items
+     */
+    private BigDecimal calculateTotalAmount(Order order) {
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+
+        return order.getItems().stream()
+                .map(this::calculateItemTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calculate total for a single order item
+     */
+    private BigDecimal calculateItemTotal(OrderItem orderItem) {
+        if (orderItem.getItem() == null || orderItem.getItem().getPrice() == null) {
+            return BigDecimal.ZERO;
+        }
+
+        return orderItem.getItem().getPrice()
+                .multiply(BigDecimal.valueOf(orderItem.getQuantity()));
+    }
+
+    /**
+     * Convert OrderItem entities to OrderItemEvent DTOs
+     */
+    private List<OrderItemEvent> convertToOrderItemEvents(List<OrderItem> orderItems) {
+        if (orderItems == null) {
+            return List.of();
+        }
+
+        return orderItems.stream()
+                .map(orderItem -> new OrderItemEvent(
+                        orderItem.getItem() != null ? orderItem.getItem().getId() : null,
+                        orderItem.getItem() != null ? orderItem.getItem().getName() : "Unknown Item",
+                        orderItem.getItem() != null ? orderItem.getItem().getPrice() : BigDecimal.ZERO,
+                        orderItem.getQuantity() != null ? orderItem.getQuantity() : 0
+                ))
+                .toList();
+    }
 }
-
-

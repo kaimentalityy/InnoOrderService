@@ -18,7 +18,30 @@ spring:
     enabled: true
     change-log: classpath:/db/changelog/changelog-master.xml
 
-# User service URL inside Docker network
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:29092}
+    consumer:
+      group-id: order-service
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.innowise.*"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      properties:
+        spring.json.add.type.headers: false
+    properties:
+      retries: 3
+      acks: all
+      request.timeout.ms: 30000
+      delivery.timeout.ms: 45000
+      batch.size: 16384
+      linger.ms: 5
+      compression.type: snappy
+
 user:
   service:
     url: ${USER_SERVICE_URI:http://user-service:8082}
