@@ -2,6 +2,7 @@ package com.innowise.orderservice.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.innowise.orderservice.model.dto.OrderDto;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import com.innowise.orderservice.service.OrderService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -43,7 +44,7 @@ class OrderControllerTest {
         orderDto = new OrderDto(
                 1L,
                 123L,
-                "PENDING",
+                OrderStatus.PAYMENT_PENDING,
                 LocalDateTime.of(2024, 10, 10, 12, 0),
                 List.of(),
                 null
@@ -60,7 +61,7 @@ class OrderControllerTest {
                         .content(objectMapper.writeValueAsString(orderDto)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"))
                 .andExpect(jsonPath("$.userId").value("123"));
 
         verify(orderService).create(any(OrderDto.class));
@@ -75,7 +76,7 @@ class OrderControllerTest {
                         .content(objectMapper.writeValueAsString(orderDto)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"));
 
         verify(orderService).update(eq(1L), any(OrderDto.class));
     }
@@ -95,7 +96,7 @@ class OrderControllerTest {
         mockMvc.perform(get("/api/orders/{id}", 1L))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.status").value("PENDING"));
+                .andExpect(jsonPath("$.status").value("PAYMENT_PENDING"));
 
         verify(orderService).findById(1L);
     }
@@ -120,7 +121,7 @@ class OrderControllerTest {
                         .param("size", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(1))
-                .andExpect(jsonPath("$.content[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.content[0].status").value("PAYMENT_PENDING"));
 
         verify(orderService).searchOrders(
                 eq(123L), eq("user@mail.com"), eq("PENDING"),
@@ -139,7 +140,7 @@ class OrderControllerTest {
         mockMvc.perform(get("/api/orders"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content[0].id").value(1))
-                .andExpect(jsonPath("$.content[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.content[0].status").value("PAYMENT_PENDING"));
 
         verify(orderService).searchOrders(
                 isNull(), isNull(), isNull(), isNull(), isNull(), any(Pageable.class)

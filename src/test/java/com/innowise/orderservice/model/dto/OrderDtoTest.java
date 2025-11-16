@@ -1,5 +1,6 @@
 package com.innowise.orderservice.model.dto;
 
+import com.innowise.orderservice.model.enums.OrderStatus;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
@@ -30,7 +31,7 @@ class OrderDtoTest {
         OrderDto dto = new OrderDto(
                 1L,
                 123L,
-                "NEW",
+                OrderStatus.CONFIRMED,
                 LocalDateTime.now(),
                 List.of(itemDto),
                 null
@@ -39,7 +40,7 @@ class OrderDtoTest {
 
         assertEquals(1L, dto.id());
         assertEquals(123L, dto.userId());
-        assertEquals("NEW", dto.status());
+        assertEquals("CONFIRMED", dto.status().getValue());
         assertEquals(1, dto.items().size());
         assertEquals(10L, dto.items().get(0).id());
     }
@@ -51,7 +52,7 @@ class OrderDtoTest {
         OrderDto dto = new OrderDto(
                 1L,
                 null,
-                "",
+                null,
                 LocalDateTime.now().plusDays(1),
                 List.of(itemDto),
                 null

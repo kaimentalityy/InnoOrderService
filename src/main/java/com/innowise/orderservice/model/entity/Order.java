@@ -1,5 +1,6 @@
 package com.innowise.orderservice.model.entity;
 
+import com.innowise.orderservice.model.enums.OrderStatus;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -26,7 +27,7 @@ public class Order {
     private Long id;
 
     @Column(name = "status", nullable = false)
-    private String status;
+    private OrderStatus status;
 
     @Column(name = "user_id", nullable = false)
     private Long userId;

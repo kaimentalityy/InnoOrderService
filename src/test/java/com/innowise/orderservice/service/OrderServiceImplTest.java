@@ -7,6 +7,7 @@ import com.innowise.orderservice.mapper.OrderMapper;
 import com.innowise.orderservice.model.dto.OrderDto;
 import com.innowise.orderservice.model.dto.UserInfoDto;
 import com.innowise.orderservice.model.entity.Order;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import com.innowise.orderservice.service.impl.OrderServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +48,7 @@ class OrderServiceImplTest {
 
         entity = new Order();
         entity.setId(1L);
-        entity.setStatus("NEW");
+        entity.setStatus(OrderStatus.CONFIRMED);
         entity.setUserId(123L);
         entity.setCreatedDate(LocalDateTime.now());
 
@@ -56,7 +57,7 @@ class OrderServiceImplTest {
         dto = new OrderDto(
                 1L,
                 123L,
-                "NEW",
+                OrderStatus.CONFIRMED,
                 entity.getCreatedDate(),
                 List.of(),
                 userInfo

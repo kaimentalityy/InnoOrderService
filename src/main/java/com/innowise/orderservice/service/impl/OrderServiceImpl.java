@@ -11,6 +11,7 @@ import com.innowise.orderservice.model.dto.OrderDto;
 import com.innowise.orderservice.model.dto.UserInfoDto;
 import com.innowise.orderservice.model.entity.Order;
 import com.innowise.orderservice.model.entity.OrderItem;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import com.innowise.orderservice.service.OrderService;
 import com.innowise.orderservice.service.kafka.OrderEventProducer;
 import lombok.RequiredArgsConstructor;
@@ -137,6 +138,17 @@ public class OrderServiceImpl implements OrderService {
         } catch (Exception e) {
             log.error("Failed to send CREATE_ORDER event for order ID: {}", order.getId(), e);
         }
+    }
+
+    @Transactional
+    public OrderDto updateOrderStatus(Long orderId, OrderStatus status) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new OrderNotFoundException());
+
+        order.setStatus(status);
+        Order saved = orderRepository.save(order);
+
+        return orderMapper.toDto(saved);
     }
 
     /**

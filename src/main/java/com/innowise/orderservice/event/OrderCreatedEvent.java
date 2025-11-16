@@ -1,5 +1,8 @@
 package com.innowise.orderservice.event;
 
+import com.innowise.orderservice.model.enums.EventType;
+import com.innowise.orderservice.model.enums.OrderStatus;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -11,11 +14,11 @@ import java.util.List;
 @Setter
 public class OrderCreatedEvent {
     private String eventId;
-    private String eventType = "ORDER_CREATED";
+    private EventType eventType = EventType.ORDER_CREATE;
     private LocalDateTime eventTimestamp;
     private Long orderId;
     private Long userId;
-    private String status;
+    private OrderStatus status;
     private BigDecimal totalAmount;
     private List<OrderItemEvent> items;
     
@@ -24,7 +27,7 @@ public class OrderCreatedEvent {
         this.eventId = java.util.UUID.randomUUID().toString();
     }
     
-    public OrderCreatedEvent(Long orderId, Long userId, String status, 
+    public OrderCreatedEvent(Long orderId, Long userId, OrderStatus status,
                            BigDecimal totalAmount, List<OrderItemEvent> items) {
         this();
         this.orderId = orderId;
