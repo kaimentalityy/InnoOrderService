@@ -4,6 +4,7 @@ import com.innowise.orderservice.dao.repository.ItemRepository;
 import com.innowise.orderservice.dao.repository.OrderItemRepository;
 import com.innowise.orderservice.dao.repository.OrderRepository;
 import com.innowise.orderservice.integration.BaseIntegrationTest;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,7 +43,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
         item = itemRepository.saveAndFlush(item);
 
         order = new Order();
-        order.setStatus("NEW");
+        order.setStatus(OrderStatus.CONFIRMED);
         order.setUserId(123L);
         order.setCreatedDate(LocalDateTime.now());
 
@@ -61,7 +62,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
         Order savedOrder = orderRepository.findById(order.getId()).orElseThrow();
 
         assertThat(savedOrder.getId()).isNotNull();
-        assertThat(savedOrder.getStatus()).isEqualTo("NEW");
+        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
         assertThat(savedOrder.getUserId()).isEqualTo(123L);
         assertThat(savedOrder.getCreatedDate()).isNotNull();
     }
@@ -114,7 +115,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
 
         Order order3 = new Order();
         order3.setId(999L);
-        order3.setStatus("DIFFERENT");
+        order3.setStatus(OrderStatus.CONFIRMED);
         order3.setUserId(999L);
         order3.setCreatedDate(LocalDateTime.now());
 
@@ -123,7 +124,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
         assertNotEquals(order1, order3);
 
         String toString = order1.toString();
-        assertThat(toString).contains("NEW");
+        assertThat(toString).contains("CONFIRMED");
         assertThat(toString).contains("123");
         assertThat(toString).doesNotContain("items=");
     }
@@ -132,13 +133,13 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
     void testSettersAndGettersIndividually() {
         Order o = new Order();
         o.setId(555L);
-        o.setStatus("PROCESSING");
+        o.setStatus(OrderStatus.PAYMENT_PENDING);
         o.setUserId(987L);
         LocalDateTime now = LocalDateTime.now();
         o.setCreatedDate(now);
 
         assertThat(o.getId()).isEqualTo(555L);
-        assertThat(o.getStatus()).isEqualTo("PROCESSING");
+        assertThat(o.getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
         assertThat(o.getUserId()).isEqualTo(987L);
         assertThat(o.getCreatedDate()).isEqualTo(now);
 

@@ -4,6 +4,7 @@ import com.innowise.orderservice.integration.BaseIntegrationTest;
 import com.innowise.orderservice.model.entity.Item;
 import com.innowise.orderservice.model.entity.Order;
 import com.innowise.orderservice.model.entity.OrderItem;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,7 +39,7 @@ class OrderItemRepositoryTest extends BaseIntegrationTest {
         orderRepository.deleteAll();
 
         order = new Order();
-        order.setStatus("NEW");
+        order.setStatus(OrderStatus.CONFIRMED);
         order.setUserId(123L);
         order.setCreatedDate(LocalDateTime.now());
         orderRepository.save(order);

@@ -2,6 +2,7 @@ package com.innowise.orderservice.dao.repository;
 
 import com.innowise.orderservice.integration.BaseIntegrationTest;
 import com.innowise.orderservice.model.entity.Order;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,7 +27,7 @@ class OrderRepositoryTest extends BaseIntegrationTest {
         orderRepository.deleteAll();
 
         order = new Order();
-        order.setStatus("NEW");
+        order.setStatus(OrderStatus.CONFIRMED);
         order.setUserId(123L);
         order.setCreatedDate(LocalDateTime.now());
 
@@ -54,11 +55,11 @@ class OrderRepositoryTest extends BaseIntegrationTest {
 
     @Test
     void shouldUpdateOrderStatus() {
-        order.setStatus("COMPLETED");
+        order.setStatus(OrderStatus.CONFIRMED);
         orderRepository.save(order);
 
         Order updated = orderRepository.findById(order.getId()).orElseThrow();
-        assertEquals("COMPLETED", updated.getStatus(), "Order status should be updated");
+        assertEquals(OrderStatus.CONFIRMED, updated.getStatus(), "Order status should be updated");
     }
 
     @Test

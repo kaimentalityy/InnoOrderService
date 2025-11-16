@@ -4,6 +4,7 @@ import com.innowise.orderservice.dao.repository.ItemRepository;
 import com.innowise.orderservice.dao.repository.OrderItemRepository;
 import com.innowise.orderservice.dao.repository.OrderRepository;
 import com.innowise.orderservice.integration.BaseIntegrationTest;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,7 +44,7 @@ class OrderItemEntityIntegrationTest extends BaseIntegrationTest {
         item = itemRepository.saveAndFlush(item);
 
         order = new Order();
-        order.setStatus("PENDING");
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
         order.setUserId(321L);
         order.setCreatedDate(LocalDateTime.now());
         order = orderRepository.saveAndFlush(order);
@@ -66,7 +67,7 @@ class OrderItemEntityIntegrationTest extends BaseIntegrationTest {
 
         assertThat(savedOrderItem.getId()).isNotNull();
         assertThat(savedOrderItem.getQuantity()).isEqualTo(3);
-        assertThat(savedOrderItem.getOrder().getStatus()).isEqualTo("PENDING");
+        assertThat(savedOrderItem.getOrder().getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
         assertThat(savedOrderItem.getItem().getName()).isEqualTo("Phone");
         assertThat(savedOrderItem.getItem().getPrice()).isEqualByComparingTo("499.99");
     }

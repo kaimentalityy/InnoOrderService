@@ -1,47 +1,76 @@
 package com.innowise.orderservice.service.kafka;
 
+import com.innowise.orderservice.dao.repository.OrderRepository;
 import com.innowise.orderservice.event.PaymentCreatedEvent;
-import com.innowise.orderservice.mapper.OrderMapper;
-import com.innowise.orderservice.model.dto.OrderDto;
+import com.innowise.orderservice.exception.OrderNotFoundException;
 import com.innowise.orderservice.model.entity.Order;
-import com.innowise.orderservice.service.impl.OrderServiceImpl;
+
+import com.innowise.orderservice.model.enums.OrderStatus;
+import com.innowise.orderservice.model.enums.PaymentStatus;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class PaymentEventConsumer {
 
-    private final OrderServiceImpl orderService;
-    private final OrderMapper orderMapper;
+    private final OrderRepository orderRepository;
+
+    private final Set<String> processedEvents = ConcurrentHashMap.newKeySet();
 
     @KafkaListener(topics = "payment-events", groupId = "order-service")
+    @Transactional
     public void handlePaymentCreatedEvent(PaymentCreatedEvent event) {
-        if ("CREATE_PAYMENT".equals(event.getEventType())) {
-            log.info("Received CREATE_PAYMENT event for order ID: {}", event.getOrderId());
-            updateOrderStatus(event);
+        log.info("Received payment event for order ID: {}, payment ID: {}, status: {}",
+                event.getOrderId(), event.getPaymentId(), event.getStatus());
+
+        String eventKey = event.getEventId();
+        if (eventKey != null && !processedEvents.add(eventKey)) {
+            log.info("Event {} already processed, skipping", eventKey);
+            return;
+        }
+
+        try {
+            updateOrderBasedOnPaymentStatus(event);
+        } catch (OrderNotFoundException e) {
+            log.error("Order {} not found for payment event", event.getOrderId(), e);
+            throw e;
+        } catch (Exception e) {
+            log.error("Failed to process payment event for order {}", event.getOrderId(), e);
+            if (eventKey != null) {
+                processedEvents.remove(eventKey);
+            }
+            throw e;
         }
     }
-    
-    private void updateOrderStatus(PaymentCreatedEvent event) {
-        try {
-            log.info("Updating order status for order ID: {} based on payment status: {}", 
-                    event.getOrderId(), event.getStatus());
 
-            OrderDto orderDto = orderService.findById(event.getOrderId());
-            Order order = orderMapper.toEntity(orderDto);
+    private void updateOrderBasedOnPaymentStatus(PaymentCreatedEvent event) {
+        Order order = orderRepository.findById(event.getOrderId())
+                .orElseThrow(() -> new OrderNotFoundException());
 
-            order.setStatus(event.getStatus());
+        OrderStatus orderStatus = mapPaymentStatusToOrderStatus(event.getStatus());
 
-            orderService.create(orderMapper.toDto(order));
+        log.info("Updating order {} from status {} to {}",
+                order.getId(), order.getStatus(), orderStatus);
 
-            log.info("Order status updated successfully for order ID: {}", event.getOrderId());
-            
-        } catch (Exception e) {
-            log.error("Failed to update order status for order ID: {}", event.getOrderId(), e);
-        }
+        order.setStatus(orderStatus);
+        orderRepository.save(order);
+
+        log.info("Order {} status updated successfully to {}", order.getId(), orderStatus);
+    }
+
+    private OrderStatus mapPaymentStatusToOrderStatus(PaymentStatus paymentStatus) {
+        return switch (paymentStatus) {
+            case SUCCESS -> OrderStatus.CONFIRMED;
+            case FAILED -> OrderStatus.CANCELLED;
+            case PENDING -> OrderStatus.PAYMENT_PENDING;
+        };
     }
 }

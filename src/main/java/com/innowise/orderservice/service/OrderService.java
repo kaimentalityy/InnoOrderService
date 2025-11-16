@@ -1,6 +1,7 @@
 package com.innowise.orderservice.service;
 
 import com.innowise.orderservice.model.dto.OrderDto;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -28,4 +29,6 @@ public interface OrderService extends CrudService<OrderDto, Long> {
                                 LocalDateTime createdAfter,
                                 LocalDateTime createdBefore,
                                 Pageable pageable);
+
+    OrderDto updateOrderStatus(Long orderId, OrderStatus status);
 }
