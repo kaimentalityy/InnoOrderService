@@ -7,18 +7,19 @@ import com.innowise.orderservice.model.entity.Order;
 import com.innowise.orderservice.model.enums.OrderStatus;
 import com.innowise.orderservice.model.enums.PaymentStatus;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -26,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("PaymentEventConsumer Tests")
 class PaymentEventConsumerTest {
 
     @Mock
@@ -34,335 +36,297 @@ class PaymentEventConsumerTest {
     @InjectMocks
     private PaymentEventConsumer paymentEventConsumer;
 
-    @Captor
-    private ArgumentCaptor<Order> orderCaptor;
+    private static final String TOPIC = "order-events";
+    private static final String KEY = "order-key-123";
+    private static final int PARTITION = 0;
+    private static final long OFFSET = 100L;
+    private static final Long ORDER_ID = 1L;
+    private static final Long PAYMENT_ID = 100L;
 
-    private Order testOrder;
-    private PaymentCreatedEvent successEvent;
-    private PaymentCreatedEvent failedEvent;
-    private PaymentCreatedEvent pendingEvent;
+    private Order order;
+    private PaymentCreatedEvent event;
 
     @BeforeEach
     void setUp() {
-        testOrder = new Order();
-        testOrder.setId(100L);
-        testOrder.setUserId(200L);
-        testOrder.setStatus(OrderStatus.PAYMENT_PENDING);
-        testOrder.setCreatedDate(LocalDateTime.now());
-        testOrder.setItems(new ArrayList<>());
-
-        successEvent = PaymentCreatedEvent.builder()
-                .eventId("event-success-1")
-                .paymentId(123L)
-                .orderId(100L)
-                .userId(200L)
-                .amount(new BigDecimal("150.00"))
-                .status(PaymentStatus.SUCCESS)
-                .eventTimestamp(LocalDateTime.now())
-                .build();
-
-        failedEvent = PaymentCreatedEvent.builder()
-                .eventId("event-failed-1")
-                .paymentId(456L)
-                .orderId(100L)
-                .userId(200L)
-                .amount(new BigDecimal("150.00"))
-                .status(PaymentStatus.FAILED)
-                .eventTimestamp(LocalDateTime.now())
-                .build();
-
-        pendingEvent = PaymentCreatedEvent.builder()
-                .eventId("event-pending-1")
-                .paymentId(789L)
-                .orderId(100L)
-                .userId(200L)
-                .amount(new BigDecimal("150.00"))
-                .status(PaymentStatus.PENDING)
-                .eventTimestamp(LocalDateTime.now())
-                .build();
+        order = createOrder(ORDER_ID, OrderStatus.PAYMENT_PENDING);
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.SUCCESS);
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldUpdateOrderToConfirmed_whenPaymentSuccess() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @DisplayName("Should successfully update order status to CONFIRMED when payment is SUCCESS")
+    void handlePaymentCreatedEvent_PaymentSuccess_UpdatesOrderToConfirmed() {
+        // Arrange
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository).findById(100L);
+        // Assert
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
+        verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository).save(orderCaptor.capture());
 
         Order savedOrder = orderCaptor.getValue();
         assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+        assertThat(savedOrder.getId()).isEqualTo(ORDER_ID);
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldUpdateOrderToCancelled_whenPaymentFailed() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @DisplayName("Should successfully update order status to CANCELLED when payment is FAILED")
+    void handlePaymentCreatedEvent_PaymentFailed_UpdatesOrderToCancelled() {
+        // Arrange
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.FAILED);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        paymentEventConsumer.handlePaymentCreatedEvent(failedEvent);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository).findById(100L);
+        // Assert
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
         Order savedOrder = orderCaptor.getValue();
         assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CANCELLED);
     }
 
-    @Test
-    void handlePaymentCreatedEvent_shouldUpdateOrderToPaymentPending_whenPaymentPending() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @ParameterizedTest
+    @MethodSource("providePaymentStatusToOrderStatusMappings")
+    @DisplayName("Should correctly map payment status to order status")
+    void handlePaymentCreatedEvent_AllPaymentStatuses_MapsCorrectly(
+            PaymentStatus paymentStatus, OrderStatus expectedOrderStatus, OrderStatus initialStatus) {
+        // Arrange
+        order.setStatus(initialStatus);
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, paymentStatus);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        paymentEventConsumer.handlePaymentCreatedEvent(pendingEvent);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository).findById(100L);
+        // Assert
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
-
-        Order savedOrder = orderCaptor.getValue();
-        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(expectedOrderStatus);
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldThrowException_whenOrderNotFound() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.empty());
+    @DisplayName("Should throw OrderNotFoundException when order does not exist")
+    void handlePaymentCreatedEvent_OrderNotFound_ThrowsException() {
+        // Arrange
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(successEvent))
+        // Act & Assert
+        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
                 .isInstanceOf(OrderNotFoundException.class);
 
-        verify(orderRepository).findById(100L);
+        verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldSkipDuplicateEvent() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @DisplayName("Should throw NullPointerException when event is null")
+    void handlePaymentCreatedEvent_NullEvent_ThrowsException() {
+        // Act & Assert
+        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, null))
+                .isInstanceOf(NullPointerException.class);
 
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
-
-        verify(orderRepository, times(1)).findById(100L);
-        verify(orderRepository, times(1)).save(any(Order.class));
+        verify(orderRepository, never()).findById(any());
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldProcessMultipleDifferentEvents() {
-        PaymentCreatedEvent event1 = PaymentCreatedEvent.builder()
-                .eventId("event-1")
-                .orderId(100L)
-                .status(PaymentStatus.SUCCESS)
-                .build();
+    @DisplayName("Should throw IllegalArgumentException when order ID is null")
+    void handlePaymentCreatedEvent_NullOrderId_ThrowsException() {
+        // Arrange
+        event = createPaymentEvent(null, PAYMENT_ID, PaymentStatus.SUCCESS);
 
-        PaymentCreatedEvent event2 = PaymentCreatedEvent.builder()
-                .eventId("event-2")
-                .orderId(100L)
-                .status(PaymentStatus.FAILED)
-                .build();
+        // Act & Assert
+        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Order ID cannot be null");
 
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
-
-        paymentEventConsumer.handlePaymentCreatedEvent(event1);
-        paymentEventConsumer.handlePaymentCreatedEvent(event2);
-
-        verify(orderRepository, times(2)).findById(100L);
-        verify(orderRepository, times(2)).save(any(Order.class));
+        verify(orderRepository, never()).findById(any());
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldRemoveFromProcessedEvents_whenExceptionOccurs() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class)))
-                .thenThrow(new RuntimeException("Database error"));
+    @DisplayName("Should throw IllegalArgumentException when payment ID is null")
+    void handlePaymentCreatedEvent_NullPaymentId_ThrowsException() {
+        // Arrange
+        event = createPaymentEvent(ORDER_ID, null, PaymentStatus.SUCCESS);
 
-        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(successEvent))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Database error");
+        // Act & Assert
+        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Payment ID cannot be null");
 
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
-
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
-
-        verify(orderRepository, times(2)).findById(100L);
-        verify(orderRepository, times(2)).save(any(Order.class));
+        verify(orderRepository, never()).findById(any());
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldHandleNullEventId() {
-        PaymentCreatedEvent eventWithNullId = PaymentCreatedEvent.builder()
-                .eventId(null)
-                .orderId(100L)
-                .status(PaymentStatus.SUCCESS)
-                .build();
+    @DisplayName("Should throw IllegalArgumentException when payment status is null")
+    void handlePaymentCreatedEvent_NullPaymentStatus_ThrowsException() {
+        // Arrange
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, null);
 
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+        // Act & Assert
+        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("Payment status cannot be null");
 
-        paymentEventConsumer.handlePaymentCreatedEvent(eventWithNullId);
-        paymentEventConsumer.handlePaymentCreatedEvent(eventWithNullId);
-
-        verify(orderRepository, times(2)).findById(100L);
-        verify(orderRepository, times(2)).save(any(Order.class));
+        verify(orderRepository, never()).findById(any());
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldCallFindById() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @DisplayName("Should not save order when status is already the same")
+    void handlePaymentCreatedEvent_SameStatus_DoesNotSaveOrder() {
+        // Arrange
+        order.setStatus(OrderStatus.CONFIRMED);
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.SUCCESS);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository, times(1)).findById(100L);
+        // Assert
+        verify(orderRepository).findById(ORDER_ID);
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldCallSave() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @DisplayName("Should not save order when CANCELLED status matches FAILED payment")
+    void handlePaymentCreatedEvent_AlreadyCancelled_DoesNotSaveOrder() {
+        // Arrange
+        order.setStatus(OrderStatus.CANCELLED);
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.FAILED);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository, times(1)).save(any(Order.class));
+        // Assert
+        verify(orderRepository).findById(ORDER_ID);
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldPreserveOrderFields() {
-        Order orderWithDetails = new Order();
-        orderWithDetails.setId(100L);
-        orderWithDetails.setUserId(200L);
-        orderWithDetails.setStatus(OrderStatus.PAYMENT_PENDING);
-        orderWithDetails.setCreatedDate(LocalDateTime.now());
-        orderWithDetails.setItems(new ArrayList<>());
+    @DisplayName("Should not save order when PAYMENT_PENDING status matches PENDING payment")
+    void handlePaymentCreatedEvent_AlreadyPaymentPending_DoesNotSaveOrder() {
+        // Arrange
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
+        event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.PENDING);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(orderWithDetails));
-        when(orderRepository.save(any(Order.class))).thenReturn(orderWithDetails);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
-
-        verify(orderRepository).save(orderCaptor.capture());
-
-        Order savedOrder = orderCaptor.getValue();
-        assertThat(savedOrder.getId()).isEqualTo(100L);
-        assertThat(savedOrder.getUserId()).isEqualTo(200L);
-        assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        assertThat(savedOrder.getCreatedDate()).isNotNull();
+        // Assert
+        verify(orderRepository).findById(ORDER_ID);
+        verify(orderRepository, never()).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldHandleOrderNotFoundException_andRethrow() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.empty());
+    @DisplayName("Should update order from PENDING to CONFIRMED")
+    void handlePaymentCreatedEvent_PendingToConfirmed_UpdatesSuccessfully() {
+        // Arrange
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(successEvent))
-                .isInstanceOf(OrderNotFoundException.class);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository).findById(100L);
-    }
-
-    @Test
-    void handlePaymentCreatedEvent_shouldMapPaymentStatusCorrectly() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
-
-        paymentEventConsumer.handlePaymentCreatedEvent(successEvent);
+        // Assert
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
+    }
 
-        reset(orderRepository);
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @Test
+    @DisplayName("Should update order from PAYMENT_PENDING to CONFIRMED")
+    void handlePaymentCreatedEvent_PaymentPendingToConfirmed_UpdatesSuccessfully() {
+        // Arrange
+        order.setStatus(OrderStatus.PAYMENT_PENDING);
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        paymentEventConsumer.handlePaymentCreatedEvent(failedEvent);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
+
+        // Assert
+        ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
-        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
-
-        reset(orderRepository);
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
-
-        paymentEventConsumer.handlePaymentCreatedEvent(pendingEvent);
-        verify(orderRepository).save(orderCaptor.capture());
-        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
+        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldHandleDifferentOrderIds() {
-        Order order1 = new Order();
-        order1.setId(100L);
-        order1.setStatus(OrderStatus.PAYMENT_PENDING);
+    @DisplayName("Should handle event with all Kafka headers present")
+    void handlePaymentCreatedEvent_AllKafkaHeaders_ProcessesSuccessfully() {
+        // Arrange
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        Order order2 = new Order();
-        order2.setId(200L);
-        order2.setStatus(OrderStatus.PAYMENT_PENDING);
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(
+                "test-topic", "test-key", 5, 999L, event);
 
-        PaymentCreatedEvent event1 = PaymentCreatedEvent.builder()
-                .eventId("event-order-1")
-                .orderId(100L)
-                .status(PaymentStatus.SUCCESS)
-                .build();
-
-        PaymentCreatedEvent event2 = PaymentCreatedEvent.builder()
-                .eventId("event-order-2")
-                .orderId(200L)
-                .status(PaymentStatus.FAILED)
-                .build();
-
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(order1));
-        when(orderRepository.findById(200L)).thenReturn(Optional.of(order2));
-        when(orderRepository.save(any(Order.class))).thenAnswer(invocation -> invocation.getArgument(0));
-
-        paymentEventConsumer.handlePaymentCreatedEvent(event1);
-        paymentEventConsumer.handlePaymentCreatedEvent(event2);
-
-        verify(orderRepository).findById(100L);
-        verify(orderRepository).findById(200L);
-        verify(orderRepository, times(2)).save(any(Order.class));
+        // Assert
+        verify(orderRepository).findById(ORDER_ID);
+        verify(orderRepository).save(any(Order.class));
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldHandleRepositoryException() {
-        when(orderRepository.findById(100L))
-                .thenThrow(new RuntimeException("Database connection error"));
+    @DisplayName("Should verify order repository is called exactly once for findById")
+    void handlePaymentCreatedEvent_VerifyRepositoryInteractions() {
+        // Arrange
+        when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
+        when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(successEvent))
-                .isInstanceOf(RuntimeException.class)
-                .hasMessage("Database connection error");
+        // Act
+        paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        verify(orderRepository).findById(100L);
-        verify(orderRepository, never()).save(any(Order.class));
+        // Assert
+        verify(orderRepository, times(1)).findById(ORDER_ID);
+        verify(orderRepository, times(1)).save(any(Order.class));
+        verify(orderRepository, times(1)).save(any(Order.class));
+        verifyNoMoreInteractions(orderRepository);
     }
 
     @Test
-    void handlePaymentCreatedEvent_shouldHandleEventWithDifferentPaymentStatuses() {
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(testOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(testOrder);
+    @DisplayName("Should handle DLT event successfully (log error)")
+    void handlePaymentEventsDlt_LogsError() {
+        // Act
+        paymentEventConsumer.handlePaymentEventsDlt(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        for (PaymentStatus status : PaymentStatus.values()) {
-            PaymentCreatedEvent event = PaymentCreatedEvent.builder()
-                    .eventId("event-" + status.name())
-                    .orderId(100L)
-                    .status(status)
-                    .build();
-
-            paymentEventConsumer.handlePaymentCreatedEvent(event);
-        }
-
-        verify(orderRepository, times(PaymentStatus.values().length)).save(any(Order.class));
+        // Assert
+        // Since the method only logs, we verify that no repository interaction occurs
+        verifyNoInteractions(orderRepository);
     }
 
-    @Test
-    void handlePaymentCreatedEvent_shouldUpdateOrderFromAnyStatus() {
-        Order confirmedOrder = new Order();
-        confirmedOrder.setId(100L);
-        confirmedOrder.setStatus(OrderStatus.CONFIRMED);
+    // Helper methods
 
-        when(orderRepository.findById(100L)).thenReturn(Optional.of(confirmedOrder));
-        when(orderRepository.save(any(Order.class))).thenReturn(confirmedOrder);
+    private static Stream<Arguments> providePaymentStatusToOrderStatusMappings() {
+        return Stream.of(
+                Arguments.of(PaymentStatus.SUCCESS, OrderStatus.CONFIRMED, OrderStatus.PAYMENT_PENDING),
+                Arguments.of(PaymentStatus.FAILED, OrderStatus.CANCELLED, OrderStatus.PAYMENT_PENDING));
+    }
 
-        paymentEventConsumer.handlePaymentCreatedEvent(failedEvent);
+    private Order createOrder(Long id, OrderStatus status) {
+        Order order = new Order();
+        order.setId(id);
+        order.setStatus(status);
+        return order;
+    }
 
-        verify(orderRepository).save(orderCaptor.capture());
-        assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CANCELLED);
+    private PaymentCreatedEvent createPaymentEvent(Long orderId, Long paymentId, PaymentStatus status) {
+        PaymentCreatedEvent event = new PaymentCreatedEvent();
+        event.setOrderId(orderId);
+        event.setPaymentId(paymentId);
+        event.setStatus(status);
+        return event;
     }
 }

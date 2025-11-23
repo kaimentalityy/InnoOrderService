@@ -40,9 +40,9 @@ class OrderDtoTest {
 
         assertEquals(1L, dto.id());
         assertEquals(123L, dto.userId());
-        assertEquals("CONFIRMED", dto.status().getValue());
+        assertEquals("CONFIRMED", dto.status().name());
         assertEquals(1, dto.items().size());
-        assertEquals(10L, dto.items().get(0).id());
+        assertEquals(10L, dto.items().getFirst().id());
     }
 
     @Test

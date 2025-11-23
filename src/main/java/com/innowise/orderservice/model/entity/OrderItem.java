@@ -9,14 +9,16 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import lombok.*;
 
 @Entity
 @Table(name = "order_items")
-@Data
+@AllArgsConstructor
+@NoArgsConstructor
+@ToString
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
+@Getter
+@Setter
 public class OrderItem {
 
     @Id

@@ -7,6 +7,7 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
 import org.apache.kafka.common.TopicPartition;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -16,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -24,10 +26,11 @@ import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
+@DisplayName("OrderEventProducer Tests")
 class OrderEventProducerTest {
 
     @Mock
@@ -45,11 +48,15 @@ class OrderEventProducerTest {
     @Captor
     private ArgumentCaptor<OrderCreatedEvent> eventCaptor;
 
+    private static final String TOPIC_NAME = "order-events";
     private OrderCreatedEvent testEvent;
     private CompletableFuture<SendResult<String, Object>> future;
 
     @BeforeEach
     void setUp() {
+        // Set the topic value using ReflectionTestUtils
+        ReflectionTestUtils.setField(orderEventProducer, "ORDER_EVENTS_TOPIC", TOPIC_NAME);
+
         testEvent = new OrderCreatedEvent(
                 100L,
                 200L,
@@ -62,6 +69,7 @@ class OrderEventProducerTest {
     }
 
     @Test
+    @DisplayName("Should initialize with KafkaTemplate")
     void constructor_shouldInitializeKafkaTemplate() {
         KafkaTemplate<String, Object> template = mock(KafkaTemplate.class);
         OrderEventProducer producer = new OrderEventProducer(template);
@@ -70,17 +78,12 @@ class OrderEventProducerTest {
     }
 
     @Test
+    @DisplayName("Should send event successfully with correct topic, key and event")
     void sendOrderCreatedEvent_shouldSendEventSuccessfully() {
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        // Arrange
+        RecordMetadata metadata = createRecordMetadata(0L);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "100",
                 testEvent
         );
@@ -90,15 +93,17 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
 
+        // Assert
         verify(kafkaTemplate).send(
                 topicCaptor.capture(),
                 keyCaptor.capture(),
                 eventCaptor.capture()
         );
 
-        assertThat(topicCaptor.getValue()).isEqualTo("order-events");
+        assertThat(topicCaptor.getValue()).isEqualTo(TOPIC_NAME);
         assertThat(keyCaptor.getValue()).isEqualTo("100");
 
         OrderCreatedEvent capturedEvent = eventCaptor.getValue();
@@ -109,30 +114,40 @@ class OrderEventProducerTest {
     }
 
     @Test
+    @DisplayName("Should handle failed send")
     void sendOrderCreatedEvent_shouldHandleFailedSend() {
+        // Arrange
         RuntimeException exception = new RuntimeException("Kafka send failed");
         future.completeExceptionally(exception);
 
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("100"), eq(testEvent));
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "100", testEvent);
     }
 
     @Test
+    @DisplayName("Should handle KafkaTemplate exception")
     void sendOrderCreatedEvent_shouldHandleKafkaTemplateException() {
+        // Arrange
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenThrow(new RuntimeException("KafkaTemplate error"));
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("100"), eq(testEvent));
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "100", testEvent);
     }
 
     @Test
+    @DisplayName("Should use order ID as key")
     void sendOrderCreatedEvent_shouldUseOrderIdAsKey() {
+        // Arrange
         OrderCreatedEvent eventWithDifferentOrderId = new OrderCreatedEvent(
                 999L,
                 888L,
@@ -141,16 +156,9 @@ class OrderEventProducerTest {
                 createTestItems()
         );
 
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        RecordMetadata metadata = createRecordMetadata(0L);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "999",
                 eventWithDifferentOrderId
         );
@@ -160,29 +168,27 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(eventWithDifferentOrderId);
 
+        // Assert
         verify(kafkaTemplate).send(
-                eq("order-events"),
+                eq(TOPIC_NAME),
                 keyCaptor.capture(),
-                eq(eventWithDifferentOrderId)
+                eventCaptor.capture()
         );
 
         assertThat(keyCaptor.getValue()).isEqualTo("999");
+        assertThat(eventCaptor.getValue()).isEqualTo(eventWithDifferentOrderId);
     }
 
     @Test
+    @DisplayName("Should send to correct topic")
     void sendOrderCreatedEvent_shouldSendToCorrectTopic() {
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        // Arrange
+        RecordMetadata metadata = createRecordMetadata(0L);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "100",
                 testEvent
         );
@@ -192,30 +198,27 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
 
+        // Assert
         verify(kafkaTemplate).send(
                 topicCaptor.capture(),
                 anyString(),
                 any()
         );
 
-        assertThat(topicCaptor.getValue()).isEqualTo("order-events");
+        assertThat(topicCaptor.getValue()).isEqualTo(TOPIC_NAME);
     }
 
     @Test
+    @DisplayName("Should handle successful send with metadata")
     void sendOrderCreatedEvent_shouldHandleSuccessfulSendWithMetadata() {
+        // Arrange
         long expectedOffset = 42L;
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                expectedOffset,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        RecordMetadata metadata = createRecordMetadata(expectedOffset);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "100",
                 testEvent
         );
@@ -225,57 +228,54 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("100"), eq(testEvent));
-
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "100", testEvent);
         assertThat(metadata.offset()).isEqualTo(expectedOffset);
     }
 
     @Test
+    @DisplayName("Should handle multiple events")
     void sendOrderCreatedEvent_shouldHandleMultipleEvents() {
+        // Arrange
         OrderCreatedEvent event1 = createEvent(101L, OrderStatus.PAYMENT_PENDING);
         OrderCreatedEvent event2 = createEvent(102L, OrderStatus.CONFIRMED);
         OrderCreatedEvent event3 = createEvent(103L, OrderStatus.CANCELLED);
 
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
-        ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
-                "100",
-                testEvent
-        );
-        SendResult<String, Object> sendResult = new SendResult<>(producerRecord, metadata);
+        RecordMetadata metadata = createRecordMetadata(0L);
+        ProducerRecord<String, Object> producerRecord1 = new ProducerRecord<>(TOPIC_NAME, "101", event1);
+        ProducerRecord<String, Object> producerRecord2 = new ProducerRecord<>(TOPIC_NAME, "102", event2);
+        ProducerRecord<String, Object> producerRecord3 = new ProducerRecord<>(TOPIC_NAME, "103", event3);
 
         CompletableFuture<SendResult<String, Object>> future1 = new CompletableFuture<>();
         CompletableFuture<SendResult<String, Object>> future2 = new CompletableFuture<>();
         CompletableFuture<SendResult<String, Object>> future3 = new CompletableFuture<>();
 
-        future1.complete(sendResult);
-        future2.complete(sendResult);
-        future3.complete(sendResult);
+        future1.complete(new SendResult<>(producerRecord1, metadata));
+        future2.complete(new SendResult<>(producerRecord2, metadata));
+        future3.complete(new SendResult<>(producerRecord3, metadata));
 
-        when(kafkaTemplate.send(anyString(), eq("101"), eq(event1))).thenReturn(future1);
-        when(kafkaTemplate.send(anyString(), eq("102"), eq(event2))).thenReturn(future2);
-        when(kafkaTemplate.send(anyString(), eq("103"), eq(event3))).thenReturn(future3);
+        when(kafkaTemplate.send(TOPIC_NAME, "101", event1)).thenReturn(future1);
+        when(kafkaTemplate.send(TOPIC_NAME, "102", event2)).thenReturn(future2);
+        when(kafkaTemplate.send(TOPIC_NAME, "103", event3)).thenReturn(future3);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(event1);
         orderEventProducer.sendOrderCreatedEvent(event2);
         orderEventProducer.sendOrderCreatedEvent(event3);
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("101"), eq(event1));
-        verify(kafkaTemplate).send(eq("order-events"), eq("102"), eq(event2));
-        verify(kafkaTemplate).send(eq("order-events"), eq("103"), eq(event3));
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "101", event1);
+        verify(kafkaTemplate).send(TOPIC_NAME, "102", event2);
+        verify(kafkaTemplate).send(TOPIC_NAME, "103", event3);
     }
 
     @Test
+    @DisplayName("Should handle event with zero amount")
     void sendOrderCreatedEvent_shouldHandleEventWithZeroAmount() {
+        // Arrange
         OrderCreatedEvent zeroAmountEvent = new OrderCreatedEvent(
                 200L,
                 300L,
@@ -284,16 +284,9 @@ class OrderEventProducerTest {
                 new ArrayList<>()
         );
 
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        RecordMetadata metadata = createRecordMetadata(0L);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "200",
                 zeroAmountEvent
         );
@@ -303,10 +296,12 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(zeroAmountEvent);
 
+        // Assert
         verify(kafkaTemplate).send(
-                eq("order-events"),
+                eq(TOPIC_NAME),
                 eq("200"),
                 eventCaptor.capture()
         );
@@ -315,7 +310,9 @@ class OrderEventProducerTest {
     }
 
     @Test
+    @DisplayName("Should handle event with large amount")
     void sendOrderCreatedEvent_shouldHandleEventWithLargeAmount() {
+        // Arrange
         OrderCreatedEvent largeAmountEvent = new OrderCreatedEvent(
                 300L,
                 400L,
@@ -324,16 +321,9 @@ class OrderEventProducerTest {
                 createTestItems()
         );
 
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        RecordMetadata metadata = createRecordMetadata(0L);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "300",
                 largeAmountEvent
         );
@@ -343,10 +333,12 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(largeAmountEvent);
 
+        // Assert
         verify(kafkaTemplate).send(
-                eq("order-events"),
+                eq(TOPIC_NAME),
                 eq("300"),
                 eventCaptor.capture()
         );
@@ -356,31 +348,40 @@ class OrderEventProducerTest {
     }
 
     @Test
+    @DisplayName("Should handle NullPointerException in whenComplete")
     void sendOrderCreatedEvent_shouldHandleNullPointerExceptionInWhenComplete() {
+        // Arrange
         CompletableFuture<SendResult<String, Object>> nullFuture = new CompletableFuture<>();
 
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(nullFuture);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
-
         nullFuture.completeExceptionally(new NullPointerException("Null result"));
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("100"), eq(testEvent));
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "100", testEvent);
     }
 
     @Test
+    @DisplayName("Should not throw exception when Kafka fails")
     void sendOrderCreatedEvent_shouldNotThrowExceptionWhenKafkaFails() {
+        // Arrange
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenThrow(new RuntimeException("Connection lost"));
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(testEvent);
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("100"), eq(testEvent));
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "100", testEvent);
     }
 
     @Test
+    @DisplayName("Should handle different statuses")
     void sendOrderCreatedEvent_shouldHandleDifferentStatuses() {
+        // Arrange
         OrderCreatedEvent pendingEvent = new OrderCreatedEvent(
                 400L,
                 500L,
@@ -397,39 +398,32 @@ class OrderEventProducerTest {
                 createTestItems()
         );
 
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
-        ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
-                "400",
-                pendingEvent
-        );
-        SendResult<String, Object> sendResult = new SendResult<>(producerRecord, metadata);
+        RecordMetadata metadata = createRecordMetadata(0L);
+        ProducerRecord<String, Object> producerRecord1 = new ProducerRecord<>(TOPIC_NAME, "400", pendingEvent);
+        ProducerRecord<String, Object> producerRecord2 = new ProducerRecord<>(TOPIC_NAME, "500", confirmedEvent);
 
         CompletableFuture<SendResult<String, Object>> future1 = new CompletableFuture<>();
         CompletableFuture<SendResult<String, Object>> future2 = new CompletableFuture<>();
 
-        future1.complete(sendResult);
-        future2.complete(sendResult);
+        future1.complete(new SendResult<>(producerRecord1, metadata));
+        future2.complete(new SendResult<>(producerRecord2, metadata));
 
-        when(kafkaTemplate.send(anyString(), eq("400"), eq(pendingEvent))).thenReturn(future1);
-        when(kafkaTemplate.send(anyString(), eq("500"), eq(confirmedEvent))).thenReturn(future2);
+        when(kafkaTemplate.send(TOPIC_NAME, "400", pendingEvent)).thenReturn(future1);
+        when(kafkaTemplate.send(TOPIC_NAME, "500", confirmedEvent)).thenReturn(future2);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(pendingEvent);
         orderEventProducer.sendOrderCreatedEvent(confirmedEvent);
 
-        verify(kafkaTemplate).send(eq("order-events"), eq("400"), eq(pendingEvent));
-        verify(kafkaTemplate).send(eq("order-events"), eq("500"), eq(confirmedEvent));
+        // Assert
+        verify(kafkaTemplate).send(TOPIC_NAME, "400", pendingEvent);
+        verify(kafkaTemplate).send(TOPIC_NAME, "500", confirmedEvent);
     }
 
     @Test
+    @DisplayName("Should handle event with items")
     void sendOrderCreatedEvent_shouldHandleEventWithItems() {
+        // Arrange
         List<OrderItemEvent> items = createTestItems();
         OrderCreatedEvent eventWithItems = new OrderCreatedEvent(
                 600L,
@@ -439,16 +433,9 @@ class OrderEventProducerTest {
                 items
         );
 
-        RecordMetadata metadata = new RecordMetadata(
-                new TopicPartition("order-events", 0),
-                0L,
-                0,
-                System.currentTimeMillis(),
-                0,
-                0
-        );
+        RecordMetadata metadata = createRecordMetadata(0L);
         ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
-                "order-events",
+                TOPIC_NAME,
                 "600",
                 eventWithItems
         );
@@ -458,16 +445,50 @@ class OrderEventProducerTest {
         when(kafkaTemplate.send(anyString(), anyString(), any()))
                 .thenReturn(future);
 
+        // Act
         orderEventProducer.sendOrderCreatedEvent(eventWithItems);
 
+        // Assert
         verify(kafkaTemplate).send(
-                eq("order-events"),
+                eq(TOPIC_NAME),
                 eq("600"),
                 eventCaptor.capture()
         );
 
         assertThat(eventCaptor.getValue().getItems()).hasSize(2);
     }
+
+    @Test
+    @DisplayName("Should verify topic is not null after injection")
+    void sendOrderCreatedEvent_shouldVerifyTopicNotNull() {
+        // Arrange
+        RecordMetadata metadata = createRecordMetadata(0L);
+        ProducerRecord<String, Object> producerRecord = new ProducerRecord<>(
+                TOPIC_NAME,
+                "100",
+                testEvent
+        );
+        SendResult<String, Object> sendResult = new SendResult<>(producerRecord, metadata);
+        future.complete(sendResult);
+
+        when(kafkaTemplate.send(anyString(), anyString(), any()))
+                .thenReturn(future);
+
+        // Act
+        orderEventProducer.sendOrderCreatedEvent(testEvent);
+
+        // Assert
+        verify(kafkaTemplate).send(
+                topicCaptor.capture(),
+                anyString(),
+                any()
+        );
+
+        assertThat(topicCaptor.getValue()).isNotNull();
+        assertThat(topicCaptor.getValue()).isEqualTo(TOPIC_NAME);
+    }
+
+    // Helper methods
 
     private OrderCreatedEvent createEvent(Long orderId, OrderStatus status) {
         return new OrderCreatedEvent(
@@ -496,5 +517,16 @@ class OrderEventProducerTest {
         items.add(item1);
         items.add(item2);
         return items;
+    }
+
+    private RecordMetadata createRecordMetadata(long offset) {
+        return new RecordMetadata(
+                new TopicPartition(TOPIC_NAME, 0),
+                offset,
+                0,
+                System.currentTimeMillis(),
+                0,
+                0
+        );
     }
 }
