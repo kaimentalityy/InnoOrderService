@@ -55,14 +55,11 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should successfully update order status to CONFIRMED when payment is SUCCESS")
     void handlePaymentCreatedEvent_PaymentSuccess_UpdatesOrderToConfirmed() {
-        // Arrange
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository).save(orderCaptor.capture());
@@ -75,15 +72,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should successfully update order status to CANCELLED when payment is FAILED")
     void handlePaymentCreatedEvent_PaymentFailed_UpdatesOrderToCancelled() {
-        // Arrange
         event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.FAILED);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
 
@@ -96,16 +90,13 @@ class PaymentEventConsumerTest {
     @DisplayName("Should correctly map payment status to order status")
     void handlePaymentCreatedEvent_AllPaymentStatuses_MapsCorrectly(
             PaymentStatus paymentStatus, OrderStatus expectedOrderStatus, OrderStatus initialStatus) {
-        // Arrange
         order.setStatus(initialStatus);
         event = createPaymentEvent(ORDER_ID, PAYMENT_ID, paymentStatus);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(expectedOrderStatus);
@@ -114,10 +105,8 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should throw OrderNotFoundException when order does not exist")
     void handlePaymentCreatedEvent_OrderNotFound_ThrowsException() {
-        // Arrange
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.empty());
 
-        // Act & Assert
         assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
                 .isInstanceOf(OrderNotFoundException.class);
 
@@ -128,7 +117,6 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should throw NullPointerException when event is null")
     void handlePaymentCreatedEvent_NullEvent_ThrowsException() {
-        // Act & Assert
         assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, null))
                 .isInstanceOf(NullPointerException.class);
 
@@ -139,10 +127,8 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should throw IllegalArgumentException when order ID is null")
     void handlePaymentCreatedEvent_NullOrderId_ThrowsException() {
-        // Arrange
         event = createPaymentEvent(null, PAYMENT_ID, PaymentStatus.SUCCESS);
 
-        // Act & Assert
         assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Order ID cannot be null");
@@ -154,10 +140,8 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should throw IllegalArgumentException when payment ID is null")
     void handlePaymentCreatedEvent_NullPaymentId_ThrowsException() {
-        // Arrange
         event = createPaymentEvent(ORDER_ID, null, PaymentStatus.SUCCESS);
 
-        // Act & Assert
         assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Payment ID cannot be null");
@@ -169,10 +153,8 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should throw IllegalArgumentException when payment status is null")
     void handlePaymentCreatedEvent_NullPaymentStatus_ThrowsException() {
-        // Arrange
         event = createPaymentEvent(ORDER_ID, PAYMENT_ID, null);
 
-        // Act & Assert
         assertThatThrownBy(() -> paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Payment status cannot be null");
@@ -184,15 +166,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should not save order when status is already the same")
     void handlePaymentCreatedEvent_SameStatus_DoesNotSaveOrder() {
-        // Arrange
         order.setStatus(OrderStatus.CONFIRMED);
         event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.SUCCESS);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository, never()).save(any(Order.class));
     }
@@ -200,15 +179,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should not save order when CANCELLED status matches FAILED payment")
     void handlePaymentCreatedEvent_AlreadyCancelled_DoesNotSaveOrder() {
-        // Arrange
         order.setStatus(OrderStatus.CANCELLED);
         event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.FAILED);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository, never()).save(any(Order.class));
     }
@@ -216,15 +192,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should not save order when PAYMENT_PENDING status matches PENDING payment")
     void handlePaymentCreatedEvent_AlreadyPaymentPending_DoesNotSaveOrder() {
-        // Arrange
         order.setStatus(OrderStatus.PAYMENT_PENDING);
         event = createPaymentEvent(ORDER_ID, PAYMENT_ID, PaymentStatus.PENDING);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository, never()).save(any(Order.class));
     }
@@ -232,15 +205,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should update order from PENDING to CONFIRMED")
     void handlePaymentCreatedEvent_PendingToConfirmed_UpdatesSuccessfully() {
-        // Arrange
         order.setStatus(OrderStatus.PAYMENT_PENDING);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
@@ -249,15 +219,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should update order from PAYMENT_PENDING to CONFIRMED")
     void handlePaymentCreatedEvent_PaymentPendingToConfirmed_UpdatesSuccessfully() {
-        // Arrange
         order.setStatus(OrderStatus.PAYMENT_PENDING);
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         ArgumentCaptor<Order> orderCaptor = ArgumentCaptor.forClass(Order.class);
         verify(orderRepository).save(orderCaptor.capture());
         assertThat(orderCaptor.getValue().getStatus()).isEqualTo(OrderStatus.CONFIRMED);
@@ -266,15 +233,12 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should handle event with all Kafka headers present")
     void handlePaymentCreatedEvent_AllKafkaHeaders_ProcessesSuccessfully() {
-        // Arrange
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(
                 "test-topic", "test-key", 5, 999L, event);
 
-        // Assert
         verify(orderRepository).findById(ORDER_ID);
         verify(orderRepository).save(any(Order.class));
     }
@@ -282,14 +246,11 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should verify order repository is called exactly once for findById")
     void handlePaymentCreatedEvent_VerifyRepositoryInteractions() {
-        // Arrange
         when(orderRepository.findById(ORDER_ID)).thenReturn(Optional.of(order));
         when(orderRepository.save(any(Order.class))).thenReturn(order);
 
-        // Act
         paymentEventConsumer.handlePaymentCreatedEvent(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
         verify(orderRepository, times(1)).findById(ORDER_ID);
         verify(orderRepository, times(1)).save(any(Order.class));
         verify(orderRepository, times(1)).save(any(Order.class));
@@ -299,15 +260,10 @@ class PaymentEventConsumerTest {
     @Test
     @DisplayName("Should handle DLT event successfully (log error)")
     void handlePaymentEventsDlt_LogsError() {
-        // Act
         paymentEventConsumer.handlePaymentEventsDlt(TOPIC, KEY, PARTITION, OFFSET, event);
 
-        // Assert
-        // Since the method only logs, we verify that no repository interaction occurs
         verifyNoInteractions(orderRepository);
     }
-
-    // Helper methods
 
     private static Stream<Arguments> providePaymentStatusToOrderStatusMappings() {
         return Stream.of(

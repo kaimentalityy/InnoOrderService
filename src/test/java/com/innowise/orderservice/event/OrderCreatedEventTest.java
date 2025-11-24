@@ -18,10 +18,10 @@ class OrderCreatedEventTest {
     @Test
     @DisplayName("Should create event with no-args constructor and initialize default values")
     void testNoArgsConstructor() {
-        // When
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
 
-        // Then
+        
         assertNotNull(event.getEventId(), "Event ID should be initialized");
         assertFalse(event.getEventId().isEmpty(), "Event ID should not be empty");
         assertEquals(EventType.ORDER_CREATE, event.getEventType(), "Event type should be ORDER_CREATE");
@@ -94,70 +94,70 @@ class OrderCreatedEventTest {
     @Test
     @DisplayName("Should set and get orderId correctly")
     void testSetAndGetOrderId() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         Long orderId = 999L;
 
-        // When
+        
         event.setOrderId(orderId);
 
-        // Then
+        
         assertEquals(orderId, event.getOrderId(), "Order ID should match the set value");
     }
 
     @Test
     @DisplayName("Should set and get userId correctly")
     void testSetAndGetUserId() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         Long userId = 777L;
 
-        // When
+        
         event.setUserId(userId);
 
-        // Then
+        
         assertEquals(userId, event.getUserId(), "User ID should match the set value");
     }
 
     @Test
     @DisplayName("Should set and get status correctly")
     void testSetAndGetStatus() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         OrderStatus status = OrderStatus.CONFIRMED;
 
-        // When
+        
         event.setStatus(status);
 
-        // Then
+        
         assertEquals(status, event.getStatus(), "Status should match the set value");
     }
 
     @Test
     @DisplayName("Should set and get totalAmount correctly")
     void testSetAndGetTotalAmount() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         BigDecimal amount = new BigDecimal("150.75");
 
-        // When
+        
         event.setTotalAmount(amount);
 
-        // Then
+        
         assertEquals(amount, event.getTotalAmount(), "Total amount should match the set value");
     }
 
     @Test
     @DisplayName("Should set and get items correctly")
     void testSetAndGetItems() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         List<OrderItemEvent> items = Arrays.asList(createOrderItemEvent(1L, 3));
 
-        // When
+        
         event.setItems(items);
 
-        // Then
+        
         assertEquals(items, event.getItems(), "Items should match the set value");
         assertEquals(1, event.getItems().size(), "Items list should have 1 element");
     }
@@ -165,42 +165,42 @@ class OrderCreatedEventTest {
     @Test
     @DisplayName("Should set and get eventId correctly")
     void testSetAndGetEventId() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         String customEventId = "custom-event-id-123";
 
-        // When
+        
         event.setEventId(customEventId);
 
-        // Then
+        
         assertEquals(customEventId, event.getEventId(), "Event ID should match the set value");
     }
 
     @Test
     @DisplayName("Should set and get eventType correctly")
     void testSetAndGetEventType() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         EventType customEventType = EventType.ORDER_CREATE;
 
-        // When
+        
         event.setEventType(customEventType);
 
-        // Then
+        
         assertEquals(customEventType, event.getEventType(), "Event type should match the set value");
     }
 
     @Test
     @DisplayName("Should set and get eventTimestamp correctly")
     void testSetAndGetEventTimestamp() {
-        // Given
+        
         OrderCreatedEvent event = new OrderCreatedEvent();
         LocalDateTime customTimestamp = LocalDateTime.of(2024, 1, 1, 12, 0);
 
-        // When
+        
         event.setEventTimestamp(customTimestamp);
 
-        // Then
+        
         assertEquals(customTimestamp, event.getEventTimestamp(),
                 "Event timestamp should match the set value");
     }
@@ -208,10 +208,10 @@ class OrderCreatedEventTest {
     @Test
     @DisplayName("Should handle null values in all-args constructor")
     void testAllArgsConstructorWithNulls() {
-        // When
+        
         OrderCreatedEvent event = new OrderCreatedEvent(null, null, null, null, null);
 
-        // Then
+        
         assertNotNull(event.getEventId(), "Event ID should still be initialized");
         assertEquals(EventType.ORDER_CREATE, event.getEventType(),
                 "Event type should still be ORDER_CREATE");

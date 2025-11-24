@@ -84,16 +84,16 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should create order and save to outbox")
     void create_ShouldReturnDtoWithUserInfo() throws JsonProcessingException {
-        // Arrange
+        
         when(orderMapper.toEntity(dto)).thenReturn(entity);
         when(orderRepository.save(entity)).thenReturn(entity);
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserById(entity.getUserId())).thenReturn(userInfo);
 
-        // Act
+        
         OrderDto result = orderService.create(dto);
 
-        // Assert
+        
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo(1L);
         assertThat(result.userId()).isEqualTo(123L);
@@ -107,16 +107,16 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should update order successfully")
     void update_ShouldReturnUpdatedDto() {
-        // Arrange
+        
         when(orderRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(orderRepository.save(entity)).thenReturn(entity);
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserById(entity.getUserId())).thenReturn(userInfo);
 
-        // Act
+        
         OrderDto result = orderService.update(1L, dto);
 
-        // Assert
+        
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo(1L);
         assertThat(result.userInfo()).isEqualTo(userInfo);
@@ -128,10 +128,10 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should throw exception when updating non-existent order")
     void update_ShouldThrowIfNotFound() {
-        // Arrange
+        
         when(orderRepository.findById(1L)).thenReturn(Optional.empty());
 
-        // Act & Assert
+        
         assertThatThrownBy(() -> orderService.update(1L, dto))
                 .isInstanceOf(OrderNotFoundException.class);
 
@@ -141,23 +141,23 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should delete order successfully")
     void delete_ShouldCallRepository() {
-        // Arrange
+        
         when(orderRepository.existsById(1L)).thenReturn(true);
 
-        // Act
+        
         orderService.delete(1L);
 
-        // Assert
+        
         verify(orderRepository).deleteById(1L);
     }
 
     @Test
     @DisplayName("Should throw exception when deleting non-existent order")
     void delete_ShouldThrowIfNotFound() {
-        // Arrange
+        
         when(orderRepository.existsById(1L)).thenReturn(false);
 
-        // Act & Assert
+        
         assertThatThrownBy(() -> orderService.delete(1L))
                 .isInstanceOf(OrderNotFoundException.class);
 
@@ -167,15 +167,15 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should find order by ID with user info")
     void findById_ShouldReturnDtoWithUserInfo() {
-        // Arrange
+        
         when(orderRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserById(entity.getUserId())).thenReturn(userInfo);
 
-        // Act
+        
         OrderDto result = orderService.findById(1L);
 
-        // Assert
+        
         assertThat(result).isNotNull();
         assertThat(result.id()).isEqualTo(1L);
         assertThat(result.userInfo()).isEqualTo(userInfo);
@@ -184,10 +184,10 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should throw exception when finding non-existent order")
     void findById_ShouldThrowIfNotFound() {
-        // Arrange
+        
         when(orderRepository.findById(1L)).thenReturn(Optional.empty());
 
-        // Act & Assert
+        
         assertThatThrownBy(() -> orderService.findById(1L))
                 .isInstanceOf(OrderNotFoundException.class);
     }
@@ -195,7 +195,7 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should search orders with user ID filter")
     void searchOrders_ShouldReturnDtosWithUserInfo() {
-        // Arrange
+        
         Pageable pageable = PageRequest.of(0, 10);
         Page<Order> page = new PageImpl<>(List.of(entity));
 
@@ -203,10 +203,10 @@ class OrderServiceImplTest {
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserById(entity.getUserId())).thenReturn(userInfo);
 
-        // Act
+        
         Page<OrderDto> result = orderService.searchOrders(123L, null, "CONFIRMED", null, null, pageable);
 
-        // Assert
+        
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).userInfo()).isEqualTo(userInfo);
     }
@@ -214,7 +214,7 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should search orders using email")
     void searchOrders_ShouldUseEmailIfProvided() {
-        // Arrange
+        
         Pageable pageable = PageRequest.of(0, 10);
         Page<Order> page = new PageImpl<>(List.of(entity));
 
@@ -222,10 +222,10 @@ class OrderServiceImplTest {
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserByEmail("john@example.com")).thenReturn(userInfo);
 
-        // Act
+        
         Page<OrderDto> result = orderService.searchOrders(null, "john@example.com", "CONFIRMED", null, null, pageable);
 
-        // Assert
+        
         assertThat(result.getContent().get(0).userInfo()).isEqualTo(userInfo);
         verify(userServiceClient).getUserByEmail("john@example.com");
         verify(userServiceClient, never()).getUserById(anyLong());
@@ -234,7 +234,7 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should search orders with date range filters")
     void searchOrders_ShouldFilterByDateRange() {
-        // Arrange
+        
         LocalDateTime startDate = LocalDateTime.now().minusDays(7);
         LocalDateTime endDate = LocalDateTime.now();
         Pageable pageable = PageRequest.of(0, 10);
@@ -244,10 +244,10 @@ class OrderServiceImplTest {
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserById(entity.getUserId())).thenReturn(userInfo);
 
-        // Act
+        
         Page<OrderDto> result = orderService.searchOrders(null, null, null, startDate, endDate, pageable);
 
-        // Assert
+        
         assertThat(result.getTotalElements()).isEqualTo(1);
         verify(orderRepository).findAll(any(Specification.class), eq(pageable));
     }
@@ -255,7 +255,7 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should search orders with all filters")
     void searchOrders_ShouldApplyAllFilters() {
-        // Arrange
+        
         LocalDateTime startDate = LocalDateTime.now().minusDays(7);
         LocalDateTime endDate = LocalDateTime.now();
         Pageable pageable = PageRequest.of(0, 10);
@@ -265,10 +265,10 @@ class OrderServiceImplTest {
         when(orderMapper.orderItemsToDtos(anyList())).thenReturn(Collections.emptyList());
         when(userServiceClient.getUserById(123L)).thenReturn(userInfo);
 
-        // Act
+        
         Page<OrderDto> result = orderService.searchOrders(123L, null, "CONFIRMED", startDate, endDate, pageable);
 
-        // Assert
+        
         assertThat(result.getTotalElements()).isEqualTo(1);
         assertThat(result.getContent().get(0).status()).isEqualTo(OrderStatus.CONFIRMED);
     }
@@ -276,16 +276,16 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should return empty page when no orders match filters")
     void searchOrders_ShouldReturnEmptyPage() {
-        // Arrange
+        
         Pageable pageable = PageRequest.of(0, 10);
         Page<Order> emptyPage = new PageImpl<>(Collections.emptyList());
 
         when(orderRepository.findAll(any(Specification.class), eq(pageable))).thenReturn(emptyPage);
 
-        // Act
+        
         Page<OrderDto> result = orderService.searchOrders(999L, null, "CONFIRMED", null, null, pageable);
 
-        // Assert
+        
         assertThat(result.getTotalElements()).isZero();
         assertThat(result.getContent()).isEmpty();
     }
@@ -293,16 +293,16 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should update order status successfully")
     void updateOrderStatus_ShouldUpdateStatus() {
-        // Arrange
+        
         OrderStatus newStatus = OrderStatus.CONFIRMED;
         when(orderRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(orderRepository.save(entity)).thenReturn(entity);
         when(orderMapper.toDto(entity)).thenReturn(dto);
 
-        // Act
+        
         OrderDto result = orderService.updateOrderStatus(1L, newStatus);
 
-        // Assert
+        
         assertThat(result).isNotNull();
         verify(orderRepository).save(entity);
         assertThat(entity.getStatus()).isEqualTo(newStatus);
@@ -311,10 +311,10 @@ class OrderServiceImplTest {
     @Test
     @DisplayName("Should throw exception when updating status of non-existent order")
     void updateOrderStatus_ShouldThrowIfNotFound() {
-        // Arrange
+        
         when(orderRepository.findById(1L)).thenReturn(Optional.empty());
 
-        // Act & Assert
+        
         assertThatThrownBy(() -> orderService.updateOrderStatus(1L, OrderStatus.CONFIRMED))
                 .isInstanceOf(OrderNotFoundException.class);
 
@@ -333,7 +333,7 @@ class OrderServiceImplTest {
         item.setId(1L);
         item.setQuantity(2);
 
-        // Create a mock Item entity
+        
         com.innowise.orderservice.model.entity.Item itemEntity = new com.innowise.orderservice.model.entity.Item();
         itemEntity.setId(1L);
         itemEntity.setName("Item 1");
