@@ -6,6 +6,7 @@ import com.innowise.orderservice.model.dto.UserInfoDto;
 import com.innowise.orderservice.model.entity.Item;
 import com.innowise.orderservice.model.entity.Order;
 import com.innowise.orderservice.model.entity.OrderItem;
+import com.innowise.orderservice.model.enums.OrderStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mapstruct.factory.Mappers;
@@ -29,7 +30,7 @@ class OrderMapperTest {
         Order order = new Order();
         order.setId(1L);
         order.setUserId(123L);
-        order.setStatus("NEW");
+        order.setStatus(OrderStatus.CONFIRMED);
         order.setCreatedDate(LocalDateTime.now());
 
         Item itemEntity = new Item();
@@ -66,7 +67,7 @@ class OrderMapperTest {
         OrderDto dto = new OrderDto(
                 1L,
                 123L,
-                "NEW",
+                OrderStatus.CONFIRMED,
                 LocalDateTime.now(),
                 List.of(itemDto),
                 new UserInfoDto(1L, "John", "Doe", "john@example.com")
@@ -85,14 +86,14 @@ class OrderMapperTest {
     void updateEntity_ShouldUpdateFieldsWithoutChangingId() {
         Order order = new Order();
         order.setId(1L);
-        order.setStatus("OLD");
+        order.setStatus(OrderStatus.CONFIRMED);
         order.setUserId(1L);
         order.setCreatedDate(LocalDateTime.now());
 
         OrderDto dto = new OrderDto(
                 999L,
                 2L,
-                "NEW",
+                OrderStatus.CONFIRMED,
                 LocalDateTime.now(),
                 List.of(),
                 null
@@ -101,7 +102,7 @@ class OrderMapperTest {
         orderMapper.updateEntity(order, dto);
 
         assertEquals(1L, order.getId());
-        assertEquals("NEW", order.getStatus());
+        assertEquals(OrderStatus.CONFIRMED, order.getStatus());
         assertEquals(2L, order.getUserId());
         assertEquals(dto.createdDate(), order.getCreatedDate());
     }

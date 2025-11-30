@@ -1,6 +1,7 @@
 package com.innowise.orderservice.model.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotNull;
 
 public record OrderItemDto(
         Long id,
