@@ -55,10 +55,19 @@ public class ItemServiceImpl implements ItemService {
     @Transactional(readOnly = true)
     public Page<ItemDto> searchItems(String name, String price, String exactName, String jwtToken, Pageable pageable) {
         Specification<Item> spec = Specification.where(null);
-        if (name != null) spec = spec.and(ItemsSpecifications.hasName(name));
-        if (exactName != null) spec = spec.and(ItemsSpecifications.hasExactName(exactName));
-        if (price != null) spec = spec.and(ItemsSpecifications.hasPrice(price));
-        return itemRepository.findAll(spec, pageable)
+        if (name != null)
+            spec = spec.and(ItemsSpecifications.hasName(name));
+        if (exactName != null)
+            spec = spec.and(ItemsSpecifications.hasExactName(exactName));
+        if (price != null)
+            spec = spec.and(ItemsSpecifications.hasPrice(price));
+
+        Page<ItemDto> result = itemRepository.findAll(spec, pageable)
                 .map(itemMapper::toDto);
+
+        System.out.println("Search items: name=" + name + ", price=" + price + ", exactName=" + exactName +
+                ". Found: " + result.getTotalElements() + " items.");
+
+        return result;
     }
 }

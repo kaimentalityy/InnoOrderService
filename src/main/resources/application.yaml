@@ -94,13 +94,19 @@ management:
   metrics:
     tags:
       application: ${spring.application.name:order-service}
+      service: order-service
       environment: ${ENVIRONMENT:dev}
     distribution:
       percentiles-histogram:
         '[http.server.requests]': true
       slo:
         '[http.server.requests]': 50ms,100ms,200ms,400ms,800ms,1s,2s
+  observations:
+    key-values:
+      application: ${spring.application.name}
+      service: order-service
   tracing:
+    enabled: true
     sampling:
       probability: 1.0
   otlp:

@@ -17,6 +17,8 @@ import com.innowise.model.entity.OrderItem;
 import com.innowise.model.enums.OrderStatus;
 import com.innowise.service.OrderService;
 import com.innowise.service.kafka.OrderEventProducer;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -41,35 +43,55 @@ public class OrderServiceImpl implements OrderService {
     private final UserServiceClient userServiceClient;
     private final OrderEventProducer orderEventProducer;
 
+    private final Counter ordersCreatedCounter;
+    private final Counter ordersPendingCounter;
+    private final Counter ordersCompletedCounter;
+    private final Counter ordersFailedCounter;
+    private final Timer orderProcessingTimer;
+
     @Override
     @Transactional
     public OrderDto create(OrderDto createDto, String jwtToken) {
-        Order order = orderMapper.toEntity(createDto);
-        order.setCreatedDate(LocalDateTime.now());
-        order.setStatus(OrderStatus.PAYMENT_PENDING);
+        log.info("Creating order for user: {}", createDto.userId());
+        return orderProcessingTimer.record(() -> {
+            try {
+                Order order = orderMapper.toEntity(createDto);
+                order.setCreatedDate(LocalDateTime.now());
+                order.setStatus(OrderStatus.PAYMENT_PENDING);
 
-        List<OrderItem> orderItems = new ArrayList<>();
+                List<OrderItem> orderItems = new ArrayList<>();
 
-        if (createDto.items() != null) {
-            for (OrderItemDto dto : createDto.items()) {
+                if (createDto.items() != null) {
+                    for (OrderItemDto dto : createDto.items()) {
+                        log.debug("Adding item {} with quantity {} to order", dto.itemId(), dto.quantity());
+                        Item item = itemRepository.findById(dto.itemId())
+                                .orElseThrow(() -> new RuntimeException("Item not found: " + dto.itemId()));
 
-                Item item = itemRepository.findById(dto.itemId())
-                        .orElseThrow(() -> new RuntimeException("Item not found"));
+                        OrderItem oi = new OrderItem();
+                        oi.setOrder(order);
+                        oi.setItem(item);
+                        oi.setQuantity(dto.quantity());
 
-                OrderItem oi = new OrderItem();
-                oi.setOrder(order);
-                oi.setItem(item);
-                oi.setQuantity(dto.quantity());
+                        orderItems.add(oi);
+                    }
+                }
 
-                orderItems.add(oi);
+                order.setItems(orderItems);
+                Order saved = orderRepository.save(order);
+                log.info("Order saved with ID: {}", saved.getId());
+
+                sendOrderCreatedEvent(saved);
+
+                ordersCreatedCounter.increment();
+                ordersPendingCounter.increment();
+
+                return mapToOrderDto(saved, null, jwtToken);
+            } catch (Exception e) {
+                log.error("Failed to create order for user {}: {}", createDto.userId(), e.getMessage(), e);
+                ordersFailedCounter.increment();
+                throw e;
             }
-        }
-
-        order.setItems(orderItems);
-        Order saved = orderRepository.save(order);
-        sendOrderCreatedEvent(saved);
-
-        return mapToOrderDto(saved, null, jwtToken);
+        });
     }
 
     @Override
@@ -105,15 +127,19 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional(readOnly = true)
     public Page<OrderDto> searchOrders(Long userId, String email, String status,
-                                       LocalDateTime createdAfter, LocalDateTime createdBefore,
-                                       String jwtToken, Pageable pageable) {
+            LocalDateTime createdAfter, LocalDateTime createdBefore,
+            String jwtToken, Pageable pageable) {
 
         Specification<Order> spec = Specification.where(null);
 
-        if (userId != null) spec = spec.and(OrderSpecifications.hasUserId(userId));
-        if (status != null) spec = spec.and(OrderSpecifications.hasStatus(status));
-        if (createdAfter != null) spec = spec.and(OrderSpecifications.createdAfter(createdAfter));
-        if (createdBefore != null) spec = spec.and(OrderSpecifications.createdBefore(createdBefore));
+        if (userId != null)
+            spec = spec.and(OrderSpecifications.hasUserId(userId));
+        if (status != null)
+            spec = spec.and(OrderSpecifications.hasStatus(status));
+        if (createdAfter != null)
+            spec = spec.and(OrderSpecifications.createdAfter(createdAfter));
+        if (createdBefore != null)
+            spec = spec.and(OrderSpecifications.createdBefore(createdBefore));
 
         return orderRepository.findAll(spec, pageable)
                 .map(order -> mapToOrderDto(order, email, jwtToken));
@@ -127,6 +153,12 @@ public class OrderServiceImpl implements OrderService {
         order.setStatus(status);
         Order saved = orderRepository.save(order);
 
+        if (status == OrderStatus.CONFIRMED) {
+            ordersCompletedCounter.increment();
+        } else if (status == OrderStatus.CANCELLED) {
+            ordersFailedCounter.increment();
+        }
+
         return mapToOrderDto(saved, null, jwtToken);
     }
 
@@ -138,8 +170,7 @@ public class OrderServiceImpl implements OrderService {
                 order.getStatus(),
                 order.getCreatedDate(),
                 orderMapper.orderItemsToDtos(order.getItems()),
-                userInfo
-        );
+                userInfo);
     }
 
     private UserInfoDto fetchUserInfo(Long userId, String email, String jwtToken) {
@@ -169,7 +200,8 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private BigDecimal calculateTotalAmount(Order order) {
-        if (order.getItems() == null || order.getItems().isEmpty()) return BigDecimal.ZERO;
+        if (order.getItems() == null || order.getItems().isEmpty())
+            return BigDecimal.ZERO;
 
         return order.getItems().stream()
                 .map(this::calculateItemTotal)
@@ -177,12 +209,14 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private BigDecimal calculateItemTotal(OrderItem item) {
-        if (item.getItem() == null || item.getItem().getPrice() == null) return BigDecimal.ZERO;
+        if (item.getItem() == null || item.getItem().getPrice() == null)
+            return BigDecimal.ZERO;
         return item.getItem().getPrice().multiply(BigDecimal.valueOf(item.getQuantity()));
     }
 
     private List<OrderItemEvent> convertToOrderItemEvents(List<OrderItem> orderItems) {
-        if (orderItems == null) return List.of();
+        if (orderItems == null)
+            return List.of();
 
         return orderItems.stream()
                 .map(oi -> new OrderItemEvent(
