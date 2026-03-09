@@ -7,7 +7,7 @@ import java.time.LocalDateTime;
 
 public class OrderSpecifications {
 
-    public static Specification<Order> hasUserId(Long userId) {
+    public static Specification<Order> hasUserId(String userId) {
         return (root, query, cb) -> cb.equal(root.get("userId"), userId);
     }
 

@@ -40,7 +40,7 @@ class OrderItemRepositoryTest extends BaseIntegrationTest {
 
         order = new Order();
         order.setStatus(OrderStatus.CONFIRMED);
-        order.setUserId(123L);
+        order.setUserId("user-123");
         order.setCreatedDate(LocalDateTime.now());
         orderRepository.save(order);
 

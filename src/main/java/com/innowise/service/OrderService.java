@@ -9,13 +9,12 @@ import java.time.LocalDateTime;
 
 public interface OrderService extends CrudService<OrderDto, Long> {
 
-    Page<OrderDto> searchOrders(Long userId,
-                                String email,
-                                String status,
-                                LocalDateTime createdAfter,
-                                LocalDateTime createdBefore,
-                                String jwtToken,
-                                Pageable pageable);
+    Page<OrderDto> searchOrders(String userId,
+            String email,
+            String status,
+            LocalDateTime createdAfter,
+            LocalDateTime createdBefore,
+            Pageable pageable);
 
-    OrderDto updateOrderStatus(Long orderId, OrderStatus status, String jwtToken);
+    OrderDto updateOrderStatus(Long orderId, OrderStatus status);
 }

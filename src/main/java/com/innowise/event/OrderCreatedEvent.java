@@ -25,7 +25,7 @@ public class OrderCreatedEvent {
     private LocalDateTime eventTimestamp = LocalDateTime.now();
 
     private Long orderId;
-    private Long userId;
+    private String userId;
     private OrderStatus status;
     private BigDecimal totalAmount;
     private List<OrderItemEvent> items;

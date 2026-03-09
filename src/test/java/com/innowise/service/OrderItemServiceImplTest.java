@@ -36,7 +36,6 @@ class OrderItemServiceImplTest {
 
     private OrderItem entity;
     private OrderItemDto dto;
-    private static final String TEST_TOKEN = "test-token";
 
     @BeforeEach
     void setUp() {
@@ -57,7 +56,7 @@ class OrderItemServiceImplTest {
         when(orderItemRepository.save(entity)).thenReturn(entity);
         when(orderItemMapper.toDto(entity)).thenReturn(dto);
 
-        OrderItemDto result = orderItemService.create(dto, TEST_TOKEN);
+        OrderItemDto result = orderItemService.create(dto);
 
         assertNotNull(result);
         assertEquals(dto.id(), result.id());
@@ -72,7 +71,7 @@ class OrderItemServiceImplTest {
         when(orderItemRepository.save(entity)).thenReturn(entity);
         when(orderItemMapper.toDto(entity)).thenReturn(dto);
 
-        OrderItemDto result = orderItemService.update(1L, dto, TEST_TOKEN);
+        OrderItemDto result = orderItemService.update(1L, dto);
 
         assertEquals(dto, result);
         verify(orderItemMapper).updateEntity(entity, dto);
@@ -84,7 +83,7 @@ class OrderItemServiceImplTest {
         when(orderItemRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(OrderItemNotFoundException.class,
-                () -> orderItemService.update(1L, dto, TEST_TOKEN));
+                () -> orderItemService.update(1L, dto));
 
         verify(orderItemRepository, never()).save(any());
     }
@@ -113,7 +112,7 @@ class OrderItemServiceImplTest {
         when(orderItemRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(orderItemMapper.toDto(entity)).thenReturn(dto);
 
-        OrderItemDto result = orderItemService.findById(1L, TEST_TOKEN);
+        OrderItemDto result = orderItemService.findById(1L);
 
         assertNotNull(result);
         assertEquals(dto.id(), result.id());
@@ -124,7 +123,7 @@ class OrderItemServiceImplTest {
         when(orderItemRepository.findById(1L)).thenReturn(Optional.empty());
 
         assertThrows(OrderItemNotFoundException.class,
-                () -> orderItemService.findById(1L, TEST_TOKEN));
+                () -> orderItemService.findById(1L));
     }
 
     @Test
@@ -137,7 +136,7 @@ class OrderItemServiceImplTest {
         when(orderItemMapper.toDto(entity)).thenReturn(dto);
 
         Page<OrderItemDto> result = orderItemService.searchOrderItems(
-                1L, 2L, 3, 1, 10, TEST_TOKEN, pageable);
+                1L, 2L, 3, 1, 10, pageable);
 
         assertEquals(1, result.getTotalElements());
         assertEquals(dto, result.getContent().get(0));
@@ -154,7 +153,7 @@ class OrderItemServiceImplTest {
         when(orderItemMapper.toDto(entity)).thenReturn(dto);
 
         Page<OrderItemDto> result = orderItemService.searchOrderItems(
-                null, null, null, null, null, TEST_TOKEN, pageable);
+                null, null, null, null, null, pageable);
 
         assertEquals(1, result.getTotalElements());
     }

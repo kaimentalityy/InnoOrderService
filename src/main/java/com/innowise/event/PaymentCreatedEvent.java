@@ -20,15 +20,15 @@ public class PaymentCreatedEvent {
 
     private String paymentId;
     private Long orderId;
-    private Long userId;
+    private String userId;
     private BigDecimal amount;
     private PaymentStatus status;
 
     public static PaymentCreatedEvent create(String paymentId,
-                                             Long orderId,
-                                             Long userId,
-                                             BigDecimal amount,
-                                             PaymentStatus status) {
+            Long orderId,
+            String userId,
+            BigDecimal amount,
+            PaymentStatus status) {
 
         return PaymentCreatedEvent.builder()
                 .eventId(UUID.randomUUID().toString())

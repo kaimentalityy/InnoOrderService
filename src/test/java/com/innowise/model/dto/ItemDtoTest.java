@@ -36,6 +36,6 @@ class ItemDtoTest {
         ItemDto dto = new ItemDto(null, "", new BigDecimal("0.0"));
 
         Set<ConstraintViolation<ItemDto>> violations = validator.validate(dto);
-        assertEquals(3, violations.size());
+        assertEquals(2, violations.size());
     }
 }

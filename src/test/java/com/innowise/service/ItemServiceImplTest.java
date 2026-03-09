@@ -40,7 +40,6 @@ class ItemServiceImplTest {
 
     private Item entity;
     private ItemDto dto;
-    private static final String TEST_TOKEN = "test-token";
 
     @BeforeEach
     void setUp() {
@@ -63,7 +62,7 @@ class ItemServiceImplTest {
         when(itemRepository.save(entity)).thenReturn(entity);
         when(itemMapper.toDto(entity)).thenReturn(dto);
 
-        ItemDto result = itemService.create(dto, TEST_TOKEN);
+        ItemDto result = itemService.create(dto);
 
         assertEquals(dto, result);
         verify(itemRepository).save(entity);
@@ -75,7 +74,7 @@ class ItemServiceImplTest {
         when(itemRepository.save(entity)).thenReturn(entity);
         when(itemMapper.toDto(entity)).thenReturn(dto);
 
-        ItemDto result = itemService.update(1L, dto, TEST_TOKEN);
+        ItemDto result = itemService.update(1L, dto);
 
         assertEquals(dto, result);
         verify(itemMapper).updateEntity(entity, dto);
@@ -85,7 +84,7 @@ class ItemServiceImplTest {
     @Test
     void update_ShouldThrowIfNotFound() {
         when(itemRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(ItemNotFoundException.class, () -> itemService.update(1L, dto, TEST_TOKEN));
+        assertThrows(ItemNotFoundException.class, () -> itemService.update(1L, dto));
     }
 
     @Test
@@ -106,7 +105,7 @@ class ItemServiceImplTest {
         when(itemRepository.findById(1L)).thenReturn(Optional.of(entity));
         when(itemMapper.toDto(entity)).thenReturn(dto);
 
-        ItemDto result = itemService.findById(1L, TEST_TOKEN);
+        ItemDto result = itemService.findById(1L);
 
         assertEquals(dto, result);
         verify(itemRepository).findById(1L);
@@ -115,7 +114,7 @@ class ItemServiceImplTest {
     @Test
     void findById_ShouldThrowIfNotFound() {
         when(itemRepository.findById(1L)).thenReturn(Optional.empty());
-        assertThrows(ItemNotFoundException.class, () -> itemService.findById(1L, TEST_TOKEN));
+        assertThrows(ItemNotFoundException.class, () -> itemService.findById(1L));
     }
 
     @Test
@@ -127,7 +126,7 @@ class ItemServiceImplTest {
                 .thenReturn(page);
         when(itemMapper.toDto(entity)).thenReturn(dto);
 
-        Page<ItemDto> result = itemService.searchItems("pen", "10.0", "Pencil", TEST_TOKEN, pageable);
+        Page<ItemDto> result = itemService.searchItems("pen", "10.0", "Pencil", pageable);
 
         assertEquals(1, result.getTotalElements());
         assertEquals(dto, result.getContent().getFirst());
@@ -142,7 +141,7 @@ class ItemServiceImplTest {
                 .thenReturn(page);
         when(itemMapper.toDto(entity)).thenReturn(dto);
 
-        Page<ItemDto> result = itemService.searchItems(null, null, null, TEST_TOKEN, pageable);
+        Page<ItemDto> result = itemService.searchItems(null, null, null, pageable);
 
         assertEquals(1, result.getTotalElements());
         verify(itemRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));

@@ -8,5 +8,6 @@
     <include file="db/changelog/001-create-orders.xml"/>
     <include file="db/changelog/002-create-items.xml"/>
     <include file="db/changelog/003-order-items.xml"/>
+    <include file="db/changelog/004-change-userid-to-string.xml"/>
 
 </databaseChangeLog>

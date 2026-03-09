@@ -34,7 +34,7 @@ class PaymentCreatedEventTest {
         LocalDateTime timestamp = LocalDateTime.now();
         String paymentId = "payment-10";
         Long orderId = 20L;
-        Long userId = 30L;
+        String userId = "user-30";
         BigDecimal amount = new BigDecimal("99.99");
         PaymentStatus status = PaymentStatus.SUCCESS;
 
@@ -87,7 +87,7 @@ class PaymentCreatedEventTest {
         LocalDateTime timestamp = LocalDateTime.now();
         String paymentId = "payment-456";
         Long orderId = 100L;
-        Long userId = 200L;
+        String userId = "user-200";
         BigDecimal amount = new BigDecimal("150.00");
         PaymentStatus status = PaymentStatus.SUCCESS;
 
@@ -116,13 +116,12 @@ class PaymentCreatedEventTest {
     void create_shouldGenerateEventWithDefaultValues() {
         String paymentId = "payment-789";
         Long orderId = 300L;
-        Long userId = 400L;
+        String userId = "user-400";
         BigDecimal amount = new BigDecimal("250.50");
         PaymentStatus status = PaymentStatus.SUCCESS;
 
         PaymentCreatedEvent event = PaymentCreatedEvent.create(
-                paymentId, orderId, userId, amount, status
-        );
+                paymentId, orderId, userId, amount, status);
 
         assertThat(event.getEventId()).isNotNull();
         assertThat(event.getEventType()).isEqualTo(EventType.CREATE_PAYMENT);
@@ -138,16 +137,14 @@ class PaymentCreatedEventTest {
     void create_shouldGenerateUniqueEventIds() {
         String paymentId = "payment-123";
         Long orderId = 100L;
-        Long userId = 200L;
+        String userId = "user-200";
         BigDecimal amount = new BigDecimal("100.00");
         PaymentStatus status = PaymentStatus.SUCCESS;
 
         PaymentCreatedEvent event1 = PaymentCreatedEvent.create(
-                paymentId, orderId, userId, amount, status
-        );
+                paymentId, orderId, userId, amount, status);
         PaymentCreatedEvent event2 = PaymentCreatedEvent.create(
-                paymentId, orderId, userId, amount, status
-        );
+                paymentId, orderId, userId, amount, status);
 
         assertThat(event1.getEventId()).isNotEqualTo(event2.getEventId());
     }
@@ -159,13 +156,12 @@ class PaymentCreatedEventTest {
         LocalDateTime timestamp = LocalDateTime.now();
         String paymentId = "payment-all";
         Long orderId = 500L;
-        Long userId = 600L;
+        String userId = "user-600";
         BigDecimal amount = new BigDecimal("999.99");
         PaymentStatus status = PaymentStatus.SUCCESS;
 
         PaymentCreatedEvent event = new PaymentCreatedEvent(
-                eventId, eventType, timestamp, paymentId, orderId, userId, amount, status
-        );
+                eventId, eventType, timestamp, paymentId, orderId, userId, amount, status);
 
         assertThat(event.getEventId()).isEqualTo(eventId);
         assertThat(event.getEventType()).isEqualTo(eventType);

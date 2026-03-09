@@ -1,6 +1,7 @@
 package com.innowise.service.impl;
 
 import com.innowise.client.UserServiceClient;
+import com.innowise.dao.repository.ItemRepository;
 import com.innowise.dao.repository.OrderRepository;
 import com.innowise.event.OrderCreatedEvent;
 import com.innowise.mapper.OrderMapper;
@@ -11,6 +12,8 @@ import com.innowise.model.entity.Order;
 import com.innowise.model.entity.OrderItem;
 import com.innowise.model.enums.OrderStatus;
 import com.innowise.service.kafka.OrderEventProducer;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Timer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +30,6 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -39,6 +41,9 @@ class OrderServiceImplTest {
     private OrderRepository orderRepository;
 
     @Mock
+    private ItemRepository itemRepository;
+
+    @Mock
     private OrderMapper orderMapper;
 
     @Mock
@@ -47,32 +52,53 @@ class OrderServiceImplTest {
     @Mock
     private OrderEventProducer orderEventProducer;
 
+    @Mock
+    private Counter ordersCreatedCounter;
+
+    @Mock
+    private Counter ordersPendingCounter;
+
+    @Mock
+    private Counter ordersCompletedCounter;
+
+    @Mock
+    private Counter ordersFailedCounter;
+
+    @Mock
+    private Timer orderProcessingTimer;
+
     @InjectMocks
     private OrderServiceImpl orderService;
 
     private Order order;
     private OrderDto orderDto;
     private UserInfoDto userInfoDto;
-    private static final String TEST_JWT_TOKEN = "test-jwt-token";
 
     @BeforeEach
     void setUp() {
         order = new Order();
         order.setId(1L);
-        order.setUserId(10L);
+        order.setUserId("user-10");
         order.setStatus(OrderStatus.PAYMENT_PENDING);
         order.setCreatedDate(LocalDateTime.now());
         order.setItems(new ArrayList<>());
 
         orderDto = new OrderDto(
                 1L,
-                10L,
+                "user-10",
                 OrderStatus.PAYMENT_PENDING,
                 order.getCreatedDate(),
                 List.of(),
                 null);
 
-        userInfoDto = new UserInfoDto(10L, "John", "Doe", "test@example.com");
+        userInfoDto = new UserInfoDto("user-10", "John", "Doe", "test@example.com");
+    }
+
+    private void setupTimerMock() {
+        when(orderProcessingTimer.record(any(java.util.function.Supplier.class))).thenAnswer(invocation -> {
+            java.util.function.Supplier<?> supplier = invocation.getArgument(0);
+            return supplier.get();
+        });
     }
 
     @Test
@@ -139,22 +165,22 @@ class OrderServiceImplTest {
 
     @Test
     void fetchUserInfo_usesEmailWhenProvided() throws Exception {
-        var method = OrderServiceImpl.class.getDeclaredMethod("fetchUserInfo", Long.class, String.class, String.class);
+        var method = OrderServiceImpl.class.getDeclaredMethod("fetchUserInfo", String.class, String.class);
         method.setAccessible(true);
-        when(userServiceClient.getUserByEmail(eq("mail@example.com"), eq(TEST_JWT_TOKEN))).thenReturn(userInfoDto);
-        UserInfoDto fetched = (UserInfoDto) method.invoke(orderService, 1L, "mail@example.com", TEST_JWT_TOKEN);
+        when(userServiceClient.getUserByEmail(eq("mail@example.com"))).thenReturn(userInfoDto);
+        UserInfoDto fetched = (UserInfoDto) method.invoke(orderService, "user-1", "mail@example.com");
         assertThat(fetched).isSameAs(userInfoDto);
-        verify(userServiceClient, never()).getUserById(anyLong(), anyString());
+        verify(userServiceClient, never()).getUserById(anyString());
     }
 
     @Test
     void fetchUserInfo_usesIdWhenEmailMissing() throws Exception {
-        var method = OrderServiceImpl.class.getDeclaredMethod("fetchUserInfo", Long.class, String.class, String.class);
+        var method = OrderServiceImpl.class.getDeclaredMethod("fetchUserInfo", String.class, String.class);
         method.setAccessible(true);
-        when(userServiceClient.getUserById(eq(10L), eq(TEST_JWT_TOKEN))).thenReturn(userInfoDto);
-        UserInfoDto fetched = (UserInfoDto) method.invoke(orderService, 10L, null, TEST_JWT_TOKEN);
+        when(userServiceClient.getUserById(eq("user-10"))).thenReturn(userInfoDto);
+        UserInfoDto fetched = (UserInfoDto) method.invoke(orderService, "user-10", null);
         assertThat(fetched).isSameAs(userInfoDto);
-        verify(userServiceClient, never()).getUserByEmail(anyString(), anyString());
+        verify(userServiceClient, never()).getUserByEmail(anyString());
     }
 
     @Test
@@ -162,9 +188,9 @@ class OrderServiceImplTest {
         when(orderRepository.findById(1L)).thenReturn(Optional.of(order));
         when(orderRepository.save(order)).thenReturn(order);
         when(orderMapper.orderItemsToDtos(any())).thenReturn(List.of());
-        when(userServiceClient.getUserById(eq(10L), eq(TEST_JWT_TOKEN))).thenReturn(userInfoDto);
+        when(userServiceClient.getUserById(eq("user-10"))).thenReturn(userInfoDto);
 
-        OrderDto result = orderService.updateOrderStatus(1L, OrderStatus.CONFIRMED, TEST_JWT_TOKEN);
+        OrderDto result = orderService.updateOrderStatus(1L, OrderStatus.CONFIRMED);
 
         assertThat(result).isNotNull();
         verify(orderRepository).save(order);
@@ -173,12 +199,13 @@ class OrderServiceImplTest {
 
     @Test
     void create_sendsOrderCreatedEvent() {
+        setupTimerMock();
         when(orderMapper.toEntity(any(OrderDto.class))).thenReturn(order);
         when(orderRepository.save(order)).thenReturn(order);
         when(orderMapper.orderItemsToDtos(any())).thenReturn(List.of());
-        when(userServiceClient.getUserById(eq(10L), eq(TEST_JWT_TOKEN))).thenReturn(userInfoDto);
+        when(userServiceClient.getUserById(eq("user-10"))).thenReturn(userInfoDto);
 
-        OrderDto result = orderService.create(orderDto, TEST_JWT_TOKEN);
+        OrderDto result = orderService.create(orderDto);
         assertThat(result).isNotNull();
 
         ArgumentCaptor<OrderCreatedEvent> eventCaptor = ArgumentCaptor.forClass(OrderCreatedEvent.class);

@@ -23,9 +23,9 @@ class UserInfoDtoTest {
 
     @Test
     void testRecordAccessors() {
-        UserInfoDto dto = new UserInfoDto(1L, "John", "Doe", "john.doe@example.com");
+        UserInfoDto dto = new UserInfoDto("user-1", "John", "Doe", "john.doe@example.com");
 
-        assertEquals(1L, dto.id());
+        assertEquals("user-1", dto.id());
         assertEquals("John", dto.name());
         assertEquals("Doe", dto.surname());
         assertEquals("john.doe@example.com", dto.email());

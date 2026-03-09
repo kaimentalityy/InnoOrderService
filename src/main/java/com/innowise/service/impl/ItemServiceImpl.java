@@ -23,13 +23,13 @@ public class ItemServiceImpl implements ItemService {
     private final ItemMapper itemMapper;
 
     @Override
-    public ItemDto create(ItemDto createDto, String jwtToken) {
+    public ItemDto create(ItemDto createDto) {
         Item saved = itemRepository.save(itemMapper.toEntity(createDto));
         return itemMapper.toDto(saved);
     }
 
     @Override
-    public ItemDto update(Long id, ItemDto updateDto, String jwtToken) {
+    public ItemDto update(Long id, ItemDto updateDto) {
         Item existing = itemRepository.findById(id)
                 .orElseThrow(() -> new ItemNotFoundException());
         itemMapper.updateEntity(existing, updateDto);
@@ -45,7 +45,7 @@ public class ItemServiceImpl implements ItemService {
     }
 
     @Override
-    public ItemDto findById(Long id, String jwtToken) {
+    public ItemDto findById(Long id) {
         return itemRepository.findById(id)
                 .map(itemMapper::toDto)
                 .orElseThrow(() -> new ItemNotFoundException());
@@ -53,7 +53,7 @@ public class ItemServiceImpl implements ItemService {
 
     @Override
     @Transactional(readOnly = true)
-    public Page<ItemDto> searchItems(String name, String price, String exactName, String jwtToken, Pageable pageable) {
+    public Page<ItemDto> searchItems(String name, String price, String exactName, Pageable pageable) {
         Specification<Item> spec = Specification.where(null);
         if (name != null)
             spec = spec.and(ItemsSpecifications.hasName(name));

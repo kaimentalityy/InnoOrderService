@@ -30,16 +30,14 @@ class OrderDtoTest {
 
         OrderDto dto = new OrderDto(
                 1L,
-                123L,
+                "123",
                 OrderStatus.CONFIRMED,
                 LocalDateTime.now(),
                 List.of(itemDto),
-                null
-        );
-
+                null);
 
         assertEquals(1L, dto.id());
-        assertEquals(123L, dto.userId());
+        assertEquals("123", dto.userId());
         assertEquals("CONFIRMED", dto.status().name());
         assertEquals(1, dto.items().size());
         assertEquals(10L, dto.items().getFirst().id());
@@ -55,8 +53,7 @@ class OrderDtoTest {
                 null,
                 LocalDateTime.now().plusDays(1),
                 List.of(itemDto),
-                null
-        );
+                null);
 
         Set<ConstraintViolation<OrderDto>> violations = validator.validate(dto);
         assertEquals(3, violations.size());
