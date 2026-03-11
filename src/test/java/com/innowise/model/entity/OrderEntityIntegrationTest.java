@@ -44,7 +44,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
 
         order = new Order();
         order.setStatus(OrderStatus.CONFIRMED);
-        order.setUserId(123L);
+        order.setUserId("user-123");
         order.setCreatedDate(LocalDateTime.now());
 
         OrderItem orderItem = new OrderItem();
@@ -63,7 +63,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
 
         assertThat(savedOrder.getId()).isNotNull();
         assertThat(savedOrder.getStatus()).isEqualTo(OrderStatus.CONFIRMED);
-        assertThat(savedOrder.getUserId()).isEqualTo(123L);
+        assertThat(savedOrder.getUserId()).isEqualTo("user-123");
         assertThat(savedOrder.getCreatedDate()).isNotNull();
     }
 
@@ -116,7 +116,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
         Order order3 = new Order();
         order3.setId(999L);
         order3.setStatus(OrderStatus.CONFIRMED);
-        order3.setUserId(999L);
+        order3.setUserId("user-999");
         order3.setCreatedDate(LocalDateTime.now());
 
         assertThat(order1).isEqualTo(order2);
@@ -125,7 +125,7 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
 
         String toString = order1.toString();
         assertThat(toString).contains("CONFIRMED");
-        assertThat(toString).contains("123");
+        assertThat(toString).contains("user-123");
         assertThat(toString).doesNotContain("items=");
     }
 
@@ -134,13 +134,13 @@ class OrderEntityIntegrationTest extends BaseIntegrationTest {
         Order o = new Order();
         o.setId(555L);
         o.setStatus(OrderStatus.PAYMENT_PENDING);
-        o.setUserId(987L);
+        o.setUserId("user-987");
         LocalDateTime now = LocalDateTime.now();
         o.setCreatedDate(now);
 
         assertThat(o.getId()).isEqualTo(555L);
         assertThat(o.getStatus()).isEqualTo(OrderStatus.PAYMENT_PENDING);
-        assertThat(o.getUserId()).isEqualTo(987L);
+        assertThat(o.getUserId()).isEqualTo("user-987");
         assertThat(o.getCreatedDate()).isEqualTo(now);
 
         OrderItem orderItem = new OrderItem();

@@ -6,7 +6,6 @@ import org.junit.jupiter.api.Test;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -35,7 +34,7 @@ class OrderCreatedEventTest {
         EventType eventType = EventType.ORDER_CREATE;
         LocalDateTime timestamp = LocalDateTime.now();
         Long orderId = 100L;
-        Long userId = 200L;
+        String userId = "user-200";
         BigDecimal totalAmount = new BigDecimal("150.00");
         OrderStatus status = OrderStatus.PAYMENT_PENDING;
         List<OrderItemEvent> items = createTestItems();
@@ -59,7 +58,7 @@ class OrderCreatedEventTest {
         EventType eventType = EventType.ORDER_CREATE;
         LocalDateTime timestamp = LocalDateTime.now();
         Long orderId = 300L;
-        Long userId = 400L;
+        String userId = "user-400";
         BigDecimal totalAmount = new BigDecimal("250.50");
         OrderStatus status = OrderStatus.CONFIRMED;
         List<OrderItemEvent> items = createTestItems();
@@ -89,11 +88,11 @@ class OrderCreatedEventTest {
     void builder_shouldCreateEventWithPartialFields() {
         OrderCreatedEvent event = OrderCreatedEvent.builder()
                 .orderId(500L)
-                .userId(600L)
+                .userId("user-600")
                 .build();
 
         assertThat(event.getOrderId()).isEqualTo(500L);
-        assertThat(event.getUserId()).isEqualTo(600L);
+        assertThat(event.getUserId()).isEqualTo("user-600");
         assertThat(event.getEventId()).isNotNull();
     }
 

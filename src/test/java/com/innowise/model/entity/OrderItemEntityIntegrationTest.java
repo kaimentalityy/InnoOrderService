@@ -45,7 +45,7 @@ class OrderItemEntityIntegrationTest extends BaseIntegrationTest {
 
         order = new Order();
         order.setStatus(OrderStatus.PAYMENT_PENDING);
-        order.setUserId(321L);
+        order.setUserId("user-321");
         order.setCreatedDate(LocalDateTime.now());
         order = orderRepository.saveAndFlush(order);
 

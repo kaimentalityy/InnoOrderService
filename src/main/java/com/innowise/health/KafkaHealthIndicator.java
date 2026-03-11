@@ -9,6 +9,7 @@ import org.springframework.boot.actuate.health.HealthIndicator;
 import org.springframework.kafka.core.KafkaAdmin;
 import org.springframework.stereotype.Component;
 
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,7 +25,15 @@ public class KafkaHealthIndicator implements HealthIndicator {
 
     @Override
     public Health health() {
-        try (AdminClient adminClient = AdminClient.create(kafkaAdmin.getConfigurationProperties())) {
+        Map<String, Object> config = kafkaAdmin.getConfigurationProperties();
+        if (config == null) {
+            return Health.down()
+                    .withDetail("error", "Kafka configuration properties are null")
+                    .withDetail("status", "Disconnected")
+                    .build();
+        }
+
+        try (AdminClient adminClient = AdminClient.create(config)) {
             DescribeClusterResult clusterResult = adminClient.describeCluster();
             String clusterId = clusterResult.clusterId().get(5, TimeUnit.SECONDS);
             int nodeCount = clusterResult.nodes().get(5, TimeUnit.SECONDS).size();
@@ -32,13 +41,13 @@ public class KafkaHealthIndicator implements HealthIndicator {
             return Health.up()
                     .withDetail("clusterId", clusterId)
                     .withDetail("nodeCount", nodeCount)
-                    .withDetail("bootstrap.servers", kafkaAdmin.getConfigurationProperties().get("bootstrap.servers"))
+                    .withDetail("bootstrap.servers", config.getOrDefault("bootstrap.servers", "unknown"))
                     .withDetail("status", "Connected")
                     .build();
         } catch (Exception e) {
             log.error("Kafka health check failed", e);
             return Health.down()
-                    .withDetail("error", e.getMessage())
+                    .withDetail("error", e.getMessage() != null ? e.getMessage() : e.getClass().getName())
                     .withDetail("status", "Disconnected")
                     .build();
         }

@@ -69,9 +69,9 @@ class OrderItemSpecificationsTest extends BaseIntegrationTest {
     @Test
     void hasQuantity_ShouldReturnPredicate() {
         @SuppressWarnings("unchecked")
-        Path<Integer> quantityPath = (Path<Integer>) mock(Path.class);
+        Path<Object> quantityPath = mock(Path.class);
 
-        when(root.get("quantity")).thenReturn((Path) quantityPath);
+        when(root.get("quantity")).thenReturn(quantityPath);
         when(cb.equal(quantityPath, 10)).thenReturn(predicate);
 
         Predicate result = OrderItemSpecifications.hasQuantity(10)
@@ -85,9 +85,11 @@ class OrderItemSpecificationsTest extends BaseIntegrationTest {
     @Test
     void quantityGreaterThan_ShouldReturnPredicate() {
         @SuppressWarnings("unchecked")
-        Path<Integer> quantityPath = (Path<Integer>) mock(Path.class);
+        Path<Object> quantityPathObject = mock(Path.class);
+        @SuppressWarnings("unchecked")
+        Path<Integer> quantityPath = (Path<Integer>) (Path<?>) quantityPathObject;
 
-        when(root.get("quantity")).thenReturn((Path) quantityPath);
+        when(root.get("quantity")).thenReturn(quantityPathObject);
         when(cb.greaterThan(quantityPath, 5)).thenReturn(predicate);
 
         Predicate result = OrderItemSpecifications.quantityGreaterThan(5)
@@ -101,9 +103,11 @@ class OrderItemSpecificationsTest extends BaseIntegrationTest {
     @Test
     void quantityLessThan_ShouldReturnPredicate() {
         @SuppressWarnings("unchecked")
-        Path<Integer> quantityPath = (Path<Integer>) mock(Path.class);
+        Path<Object> quantityPathObject = mock(Path.class);
+        @SuppressWarnings("unchecked")
+        Path<Integer> quantityPath = (Path<Integer>) (Path<?>) quantityPathObject;
 
-        when(root.get("quantity")).thenReturn((Path) quantityPath);
+        when(root.get("quantity")).thenReturn(quantityPathObject);
         when(cb.lessThan(quantityPath, 20)).thenReturn(predicate);
 
         Predicate result = OrderItemSpecifications.quantityLessThan(20)

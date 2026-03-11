@@ -21,7 +21,6 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -37,7 +36,7 @@ import java.net.URI;
 @RequestMapping("/api/items")
 @RequiredArgsConstructor
 @Tag(name = "Item Management", description = "APIs for managing items including creation, updates, deletion, and search operations")
-@SecurityRequirement(name = "Bearer Authentication")
+@SecurityRequirement(name = "keycloak")
 public class ItemController {
 
         private final ItemService itemService;
@@ -50,11 +49,9 @@ public class ItemController {
         })
         @PostMapping
         public ResponseEntity<ItemDto> create(
-                        @Parameter(description = "Item details to create", required = true) @Valid @RequestBody ItemDto itemDto,
-                        @Parameter(description = "JWT authentication token", required = true) @RequestHeader("Authorization") String jwtToken) {
+                        @Parameter(description = "Item details to create", required = true) @Valid @RequestBody ItemDto itemDto) {
 
-                String token = jwtToken.startsWith("Bearer ") ? jwtToken.substring(7) : jwtToken;
-                ItemDto created = itemService.create(itemDto, token);
+                ItemDto created = itemService.create(itemDto);
                 return ResponseEntity
                                 .created(URI.create("/api/items/" + created.id()))
                                 .body(created);
@@ -70,11 +67,9 @@ public class ItemController {
         @PutMapping("/{id}")
         public ResponseEntity<ItemDto> update(
                         @Parameter(description = "ID of the item to update", required = true) @PathVariable Long id,
-                        @Parameter(description = "Updated item details", required = true) @Valid @RequestBody ItemDto itemDto,
-                        @Parameter(description = "JWT authentication token", required = true) @RequestHeader("Authorization") String jwtToken) {
+                        @Parameter(description = "Updated item details", required = true) @Valid @RequestBody ItemDto itemDto) {
 
-                String token = jwtToken.startsWith("Bearer ") ? jwtToken.substring(7) : jwtToken;
-                return ResponseEntity.ok(itemService.update(id, itemDto, token));
+                return ResponseEntity.ok(itemService.update(id, itemDto));
         }
 
         @Operation(summary = "Delete an item", description = "Deletes an item identified by its ID.")
@@ -97,11 +92,9 @@ public class ItemController {
         })
         @GetMapping("/{id}")
         public ResponseEntity<ItemDto> getById(
-                        @Parameter(description = "ID of the item to retrieve", required = true) @PathVariable Long id,
-                        @Parameter(description = "JWT authentication token", required = true) @RequestHeader("Authorization") String jwtToken) {
+                        @Parameter(description = "ID of the item to retrieve", required = true) @PathVariable Long id) {
 
-                String token = jwtToken.startsWith("Bearer ") ? jwtToken.substring(7) : jwtToken;
-                return ResponseEntity.ok(itemService.findById(id, token));
+                return ResponseEntity.ok(itemService.findById(id));
         }
 
         @Operation(summary = "Search items", description = "Search and filter items based on name and price criteria with pagination support. Requires JWT authentication.")
@@ -115,14 +108,10 @@ public class ItemController {
                         @Parameter(description = "Filter by exact item name") @RequestParam(required = false) String exactName,
                         @Parameter(description = "Filter by price") @RequestParam(required = false) String price,
                         @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") int page,
-                        @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size,
-                        @Parameter(description = "JWT authentication token") @RequestHeader(value = "Authorization", required = false) String jwtToken) {
+                        @Parameter(description = "Page size") @RequestParam(defaultValue = "10") int size) {
 
-                String token = (jwtToken != null && jwtToken.startsWith("Bearer ")) ? jwtToken.substring(7) : jwtToken;
-                System.out.println("ItemController.search called with name=" + name + ", token="
-                                + (token != null ? "present" : "null"));
                 PageRequest pageRequest = PageRequest.of(page, size);
-                Page<ItemDto> results = itemService.searchItems(name, price, exactName, token, pageRequest);
+                Page<ItemDto> results = itemService.searchItems(name, price, exactName, pageRequest);
                 return ResponseEntity.ok(results);
         }
 }

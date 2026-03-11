@@ -10,10 +10,9 @@ import org.springframework.data.domain.Pageable;
 public interface OrderItemService extends CrudService<OrderItemDto, Long> {
 
     Page<OrderItemDto> searchOrderItems(Long orderId,
-                                        Long itemId,
-                                        Integer quantity,
-                                        Integer minQuantity,
-                                        Integer maxQuantity,
-                                        String jwtToken,
-                                        Pageable pageable);
+            Long itemId,
+            Integer quantity,
+            Integer minQuantity,
+            Integer maxQuantity,
+            Pageable pageable);
 }

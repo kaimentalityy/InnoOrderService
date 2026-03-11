@@ -8,11 +8,11 @@ package com.innowise.service;
  */
 public interface CrudService<T, ID> {
 
-    T create(T createDto, String jwtToken);
+    T create(T createDto);
 
-    T update(ID id, T updateDto, String jwtToken);
+    T update(ID id, T updateDto);
 
     void delete(ID id);
 
-    T findById(ID id, String jwtToken);
+    T findById(ID id);
 }

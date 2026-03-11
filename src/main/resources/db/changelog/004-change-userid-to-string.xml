@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+          http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.3.xsd">
+
+    <changeSet id="4-fixed-v3" author="kai">
+        <dropIndex tableName="orders" indexName="idx_orders_user_id"/>
+        <sql dbms="postgresql">
+            ALTER TABLE orders ALTER COLUMN user_id TYPE VARCHAR(255) USING (user_id::VARCHAR(255));
+        </sql>
+        <sql dbms="!postgresql">
+            ALTER TABLE orders ALTER COLUMN user_id VARCHAR(255);
+        </sql>
+        <createIndex tableName="orders" indexName="idx_orders_user_id">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+</databaseChangeLog>

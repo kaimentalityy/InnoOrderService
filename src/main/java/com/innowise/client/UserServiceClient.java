@@ -14,50 +14,47 @@ public class UserServiceClient {
     private final WebClient webClient;
 
     public UserServiceClient(@Value("${user.service.url}") String userServiceUrl,
-                             WebClient.Builder webClientBuilder) {
+            WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.baseUrl(userServiceUrl).build();
     }
 
     @CircuitBreaker(name = "userService", fallbackMethod = "userFallbackById")
-    public UserInfoDto getUserById(Long userId, String jwtToken) {
+    public UserInfoDto getUserById(String userId) {
         return webClient
                 .get()
-                .uri("/api/users/{id}", userId)
-                .header("Authorization", "Bearer " + jwtToken)
+                .uri("/api/users/internal/{id}", userId)
                 .retrieve()
                 .bodyToMono(UserInfoDto.class)
                 .block();
     }
 
     @CircuitBreaker(name = "userService", fallbackMethod = "userFallbackByEmail")
-    public UserInfoDto getUserByEmail(String email, String jwtToken) {
+    public UserInfoDto getUserByEmail(String email) {
         return webClient
                 .get()
-                .uri(uriBuilder -> uriBuilder.path("/api/users/search")
+                .uri(uriBuilder -> uriBuilder.path("/api/users/internal/search")
                         .queryParam("email", email)
                         .build())
-                .header("Authorization", "Bearer " + jwtToken)
                 .retrieve()
                 .bodyToMono(UserInfoDto.class)
                 .block();
     }
 
-    private UserInfoDto userFallbackById(Long id, String jwtToken, Throwable throwable) {
+    private UserInfoDto userFallbackById(String id, Throwable throwable) {
         log.warn("Fallback (getUserById) triggered: {}", throwable.getMessage());
         return createFallbackDto(id, "unknown@example.com");
     }
 
-    private UserInfoDto userFallbackByEmail(String email, String jwtToken, Throwable throwable) {
+    private UserInfoDto userFallbackByEmail(String email, Throwable throwable) {
         log.warn("Fallback (getUserByEmail) triggered: {}", throwable.getMessage());
-        return createFallbackDto(-1L, email);
+        return createFallbackDto("unknown-id", email);
     }
 
-    private UserInfoDto createFallbackDto(Long id, String email) {
+    private UserInfoDto createFallbackDto(String id, String email) {
         return new UserInfoDto(
                 id,
                 "Unknown",
                 "User",
-                email
-        );
+                email);
     }
 }

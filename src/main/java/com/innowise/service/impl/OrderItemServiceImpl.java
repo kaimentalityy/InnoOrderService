@@ -23,13 +23,13 @@ public class OrderItemServiceImpl implements OrderItemService {
     private final OrderItemMapper orderItemMapper;
 
     @Override
-    public OrderItemDto create(OrderItemDto createDto, String jwtToken) {
+    public OrderItemDto create(OrderItemDto createDto) {
         OrderItem saved = orderItemRepository.save(orderItemMapper.toEntity(createDto));
         return orderItemMapper.toDto(saved);
     }
 
     @Override
-    public OrderItemDto update(Long id, OrderItemDto updateDto, String jwtToken) {
+    public OrderItemDto update(Long id, OrderItemDto updateDto) {
         OrderItem existing = orderItemRepository.findById(id)
                 .orElseThrow(() -> new OrderItemNotFoundException());
         orderItemMapper.updateEntity(existing, updateDto);
@@ -45,7 +45,7 @@ public class OrderItemServiceImpl implements OrderItemService {
     }
 
     @Override
-    public OrderItemDto findById(Long id, String jwtToken) {
+    public OrderItemDto findById(Long id) {
         return orderItemRepository.findById(id)
                 .map(orderItemMapper::toDto)
                 .orElseThrow(() -> new OrderItemNotFoundException());
@@ -54,16 +54,20 @@ public class OrderItemServiceImpl implements OrderItemService {
     @Override
     @Transactional(readOnly = true)
     public Page<OrderItemDto> searchOrderItems(Long orderId, Long itemId, Integer quantity,
-                                               Integer minQuantity, Integer maxQuantity,
-                                               String jwtToken, Pageable pageable) {
+            Integer minQuantity, Integer maxQuantity,
+            Pageable pageable) {
         Specification<OrderItem> spec = Specification.where(null);
-        if (orderId != null) spec = spec.and(OrderItemSpecifications.hasOrderId(orderId));
-        if (itemId != null) spec = spec.and(OrderItemSpecifications.hasItemId(itemId));
-        if (quantity != null) spec = spec.and(OrderItemSpecifications.hasQuantity(quantity));
-        if (minQuantity != null) spec = spec.and(OrderItemSpecifications.quantityGreaterThan(minQuantity));
-        if (maxQuantity != null) spec = spec.and(OrderItemSpecifications.quantityLessThan(maxQuantity));
+        if (orderId != null)
+            spec = spec.and(OrderItemSpecifications.hasOrderId(orderId));
+        if (itemId != null)
+            spec = spec.and(OrderItemSpecifications.hasItemId(itemId));
+        if (quantity != null)
+            spec = spec.and(OrderItemSpecifications.hasQuantity(quantity));
+        if (minQuantity != null)
+            spec = spec.and(OrderItemSpecifications.quantityGreaterThan(minQuantity));
+        if (maxQuantity != null)
+            spec = spec.and(OrderItemSpecifications.quantityLessThan(maxQuantity));
         return orderItemRepository.findAll(spec, pageable)
                 .map(orderItemMapper::toDto);
     }
 }
-

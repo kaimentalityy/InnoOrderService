@@ -51,7 +51,7 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDto create(OrderDto createDto, String jwtToken) {
+    public OrderDto create(OrderDto createDto) {
         log.info("Creating order for user: {}", createDto.userId());
         return orderProcessingTimer.record(() -> {
             try {
@@ -63,14 +63,17 @@ public class OrderServiceImpl implements OrderService {
 
                 if (createDto.items() != null) {
                     for (OrderItemDto dto : createDto.items()) {
-                        log.debug("Adding item {} with quantity {} to order", dto.itemId(), dto.quantity());
-                        Item item = itemRepository.findById(dto.itemId())
-                                .orElseThrow(() -> new RuntimeException("Item not found: " + dto.itemId()));
+                        Long itemId = dto.itemId() != null ? dto.itemId() : dto.id();
+                        Integer quantity = dto.quantity() != null ? dto.quantity() : 1;
+
+                        log.debug("Adding item {} with quantity {} to order", itemId, quantity);
+                        Item item = itemRepository.findById(itemId)
+                                .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
 
                         OrderItem oi = new OrderItem();
                         oi.setOrder(order);
                         oi.setItem(item);
-                        oi.setQuantity(dto.quantity());
+                        oi.setQuantity(quantity);
 
                         orderItems.add(oi);
                     }
@@ -85,7 +88,7 @@ public class OrderServiceImpl implements OrderService {
                 ordersCreatedCounter.increment();
                 ordersPendingCounter.increment();
 
-                return mapToOrderDto(saved, null, jwtToken);
+                return mapToOrderDto(saved, null);
             } catch (Exception e) {
                 log.error("Failed to create order for user {}: {}", createDto.userId(), e.getMessage(), e);
                 ordersFailedCounter.increment();
@@ -96,14 +99,46 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional
-    public OrderDto update(Long id, OrderDto updateDto, String jwtToken) {
+    public OrderDto update(Long id, OrderDto updateDto) {
         Order existing = orderRepository.findById(id)
                 .orElseThrow(OrderNotFoundException::new);
 
-        orderMapper.updateEntity(existing, updateDto);
+        if (updateDto.userId() != null) {
+            existing.setUserId(updateDto.userId());
+        }
+        if (updateDto.status() != null) {
+            existing.setStatus(updateDto.status());
+        }
+        if (updateDto.createdDate() != null) {
+            existing.setCreatedDate(updateDto.createdDate());
+        }
+
+        if (updateDto.items() != null) {
+            if (existing.getItems() != null) {
+                existing.getItems().clear();
+            } else {
+                existing.setItems(new ArrayList<>());
+            }
+
+            for (OrderItemDto dto : updateDto.items()) {
+                Long itemId = dto.itemId() != null ? dto.itemId() : dto.id();
+                Integer quantity = dto.quantity() != null ? dto.quantity() : 1;
+
+                Item item = itemRepository.findById(itemId)
+                        .orElseThrow(() -> new RuntimeException("Item not found: " + itemId));
+
+                OrderItem oi = new OrderItem();
+                oi.setOrder(existing);
+                oi.setItem(item);
+                oi.setQuantity(quantity);
+
+                existing.getItems().add(oi);
+            }
+        }
+
         Order updated = orderRepository.save(existing);
 
-        return mapToOrderDto(updated, null, jwtToken);
+        return mapToOrderDto(updated, null);
     }
 
     @Override
@@ -117,18 +152,18 @@ public class OrderServiceImpl implements OrderService {
 
     @Override
     @Transactional(readOnly = true)
-    public OrderDto findById(Long id, String jwtToken) {
+    public OrderDto findById(Long id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(OrderNotFoundException::new);
 
-        return mapToOrderDto(order, null, jwtToken);
+        return mapToOrderDto(order, null);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<OrderDto> searchOrders(Long userId, String email, String status,
+    public Page<OrderDto> searchOrders(String userId, String email, String status,
             LocalDateTime createdAfter, LocalDateTime createdBefore,
-            String jwtToken, Pageable pageable) {
+            Pageable pageable) {
 
         Specification<Order> spec = Specification.where(null);
 
@@ -142,11 +177,11 @@ public class OrderServiceImpl implements OrderService {
             spec = spec.and(OrderSpecifications.createdBefore(createdBefore));
 
         return orderRepository.findAll(spec, pageable)
-                .map(order -> mapToOrderDto(order, email, jwtToken));
+                .map(order -> mapToOrderDto(order, email));
     }
 
     @Transactional
-    public OrderDto updateOrderStatus(Long orderId, OrderStatus status, String jwtToken) {
+    public OrderDto updateOrderStatus(Long orderId, OrderStatus status) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(OrderNotFoundException::new);
 
@@ -159,11 +194,11 @@ public class OrderServiceImpl implements OrderService {
             ordersFailedCounter.increment();
         }
 
-        return mapToOrderDto(saved, null, jwtToken);
+        return mapToOrderDto(saved, null);
     }
 
-    private OrderDto mapToOrderDto(Order order, String email, String jwtToken) {
-        UserInfoDto userInfo = fetchUserInfo(order.getUserId(), email, jwtToken);
+    private OrderDto mapToOrderDto(Order order, String email) {
+        UserInfoDto userInfo = fetchUserInfo(order.getUserId(), email);
         return new OrderDto(
                 order.getId(),
                 order.getUserId(),
@@ -173,11 +208,11 @@ public class OrderServiceImpl implements OrderService {
                 userInfo);
     }
 
-    private UserInfoDto fetchUserInfo(Long userId, String email, String jwtToken) {
+    private UserInfoDto fetchUserInfo(String userId, String email) {
         if (email != null && !email.isEmpty()) {
-            return userServiceClient.getUserByEmail(email, jwtToken);
+            return userServiceClient.getUserByEmail(email);
         }
-        return userServiceClient.getUserById(userId, jwtToken);
+        return userServiceClient.getUserById(userId);
     }
 
     private void sendOrderCreatedEvent(Order order) {

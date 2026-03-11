@@ -21,6 +21,8 @@ public interface OrderMapper {
     Order toEntity(OrderDto dto);
 
     @Mapping(target = "id", ignore = true)
+    @Mapping(target = "status", ignore = true) 
+    @Mapping(target = "items", ignore = true)
     void updateEntity(@MappingTarget Order entity, OrderDto dto);
 
     @Named("orderItemsToDtos")

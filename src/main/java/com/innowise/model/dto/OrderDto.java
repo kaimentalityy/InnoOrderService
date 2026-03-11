@@ -9,21 +9,15 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public record OrderDto(
-        Long id,
+                Long id,
 
-        @NotNull(message = "User ID cannot be null")
-        Long userId,
+                @NotNull(message = "User ID cannot be null") String userId,
 
-        @NotNull
-        OrderStatus status,
+                @NotNull OrderStatus status,
 
-        @PastOrPresent(message = "Creation date must be in the present or past")
-        LocalDateTime createdDate,
+                @PastOrPresent(message = "Creation date must be in the present or past") LocalDateTime createdDate,
 
-        @Valid
-        List<OrderItemDto> items,
+                @Valid List<OrderItemDto> items,
 
-        UserInfoDto userInfo
-) {}
-
-
+                UserInfoDto userInfo) {
+}

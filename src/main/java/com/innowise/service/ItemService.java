@@ -10,8 +10,7 @@ import org.springframework.data.domain.Pageable;
 public interface ItemService extends CrudService<ItemDto, Long> {
 
     Page<ItemDto> searchItems(String name,
-                              String price,
-                              String exactName,
-                              String jwtToken,
-                              Pageable pageable);
+            String price,
+            String exactName,
+            Pageable pageable);
 }

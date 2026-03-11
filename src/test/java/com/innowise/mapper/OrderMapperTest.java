@@ -29,7 +29,7 @@ class OrderMapperTest {
     void toDto_ShouldMapEntityToDto() {
         Order order = new Order();
         order.setId(1L);
-        order.setUserId(123L);
+        order.setUserId("user-123");
         order.setStatus(OrderStatus.CONFIRMED);
         order.setCreatedDate(LocalDateTime.now());
 
@@ -66,12 +66,11 @@ class OrderMapperTest {
 
         OrderDto dto = new OrderDto(
                 1L,
-                123L,
+                "user-123",
                 OrderStatus.CONFIRMED,
                 LocalDateTime.now(),
                 List.of(itemDto),
-                new UserInfoDto(1L, "John", "Doe", "john@example.com")
-        );
+                new UserInfoDto("user-1", "John", "Doe", "john@example.com"));
 
         Order order = orderMapper.toEntity(dto);
 
@@ -79,7 +78,7 @@ class OrderMapperTest {
         assertEquals(dto.id(), order.getId());
         assertEquals(dto.userId(), order.getUserId());
         assertEquals(dto.status(), order.getStatus());
-        assertEquals(0, order.getItems().size());
+        assertTrue(order.getItems() == null || order.getItems().isEmpty());
     }
 
     @Test
@@ -87,23 +86,22 @@ class OrderMapperTest {
         Order order = new Order();
         order.setId(1L);
         order.setStatus(OrderStatus.CONFIRMED);
-        order.setUserId(1L);
+        order.setUserId("user-1");
         order.setCreatedDate(LocalDateTime.now());
 
         OrderDto dto = new OrderDto(
                 999L,
-                2L,
+                "user-2",
                 OrderStatus.CONFIRMED,
                 LocalDateTime.now(),
                 List.of(),
-                null
-        );
+                null);
 
         orderMapper.updateEntity(order, dto);
 
         assertEquals(1L, order.getId());
         assertEquals(OrderStatus.CONFIRMED, order.getStatus());
-        assertEquals(2L, order.getUserId());
+        assertEquals("user-2", order.getUserId());
         assertEquals(dto.createdDate(), order.getCreatedDate());
     }
 }

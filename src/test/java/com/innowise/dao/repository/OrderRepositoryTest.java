@@ -28,7 +28,7 @@ class OrderRepositoryTest extends BaseIntegrationTest {
 
         order = new Order();
         order.setStatus(OrderStatus.CONFIRMED);
-        order.setUserId(123L);
+        order.setUserId("user-123");
         order.setCreatedDate(LocalDateTime.now());
 
         orderRepository.save(order);
@@ -45,7 +45,6 @@ class OrderRepositoryTest extends BaseIntegrationTest {
         assertEquals(order.getCreatedDate().truncatedTo(ChronoUnit.MILLIS),
                 found.get().getCreatedDate().truncatedTo(ChronoUnit.MILLIS));
     }
-
 
     @Test
     void shouldFindAllOrders() {
